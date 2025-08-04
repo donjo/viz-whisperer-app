@@ -131,7 +131,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
               <iframe
                 ref={iframeRef}
                 className="w-full h-full"
-                sandbox="allow-scripts"
+                sandbox="allow-scripts allow-same-origin"
                 title="Data Visualization Preview"
               />
             </div>
