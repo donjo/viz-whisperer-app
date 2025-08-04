@@ -66,11 +66,22 @@ export class CodeGenerator {
   }
 
   private static generateHTML(apiData: ApiData, prompt: string): string {
-    // Generate title from data source and prompt
+    // Generate title from data source and prompt (only if prompt is meaningful)
     const dataSourceName = apiData.url.includes('github.com') 
       ? apiData.url.split('/').slice(-2).join('/') 
       : new URL(apiData.url).hostname;
-    const title = `${dataSourceName} - ${prompt.charAt(0).toUpperCase() + prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`;
+    
+    // Only include prompt in title if it's descriptive and useful
+    const isPromptUseful = prompt.length > 10 && 
+      (prompt.toLowerCase().includes('chart') || 
+       prompt.toLowerCase().includes('graph') ||
+       prompt.toLowerCase().includes('show') ||
+       prompt.toLowerCase().includes('display') ||
+       prompt.toLowerCase().includes('visualiz'));
+    
+    const title = isPromptUseful 
+      ? `${dataSourceName} - ${prompt.charAt(0).toUpperCase() + prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}`
+      : dataSourceName;
     
     return `<div class="visualization-container">
   <div class="header">
