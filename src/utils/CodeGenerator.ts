@@ -66,9 +66,15 @@ export class CodeGenerator {
   }
 
   private static generateHTML(apiData: ApiData, prompt: string): string {
+    // Generate title from data source and prompt
+    const dataSourceName = apiData.url.includes('github.com') 
+      ? apiData.url.split('/').slice(-2).join('/') 
+      : new URL(apiData.url).hostname;
+    const title = `${dataSourceName} - ${prompt.charAt(0).toUpperCase() + prompt.slice(0, 50)}${prompt.length > 50 ? '...' : ''}`;
+    
     return `<div class="visualization-container">
   <div class="header">
-    <h1>Data Visualization</h1>
+    <h1>${title}</h1>
     <p>Source: ${apiData.url}</p>
     <p>Records: ${apiData.structure.totalRecords}</p>
   </div>
@@ -189,7 +195,7 @@ canvas.height = 400;
 
 // Basic bar chart visualization
 function drawChart() {
-  const padding = 60;
+  const padding = 80; // Increased padding for axis labels
   const chartWidth = canvas.width - 2 * padding;
   const chartHeight = canvas.height - 2 * padding;
   
@@ -209,6 +215,22 @@ function drawChart() {
     ctx.stroke();
   }
   
+  // Draw axes
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.lineWidth = 2;
+  
+  // Y-axis
+  ctx.beginPath();
+  ctx.moveTo(padding, padding);
+  ctx.lineTo(padding, canvas.height - padding);
+  ctx.stroke();
+  
+  // X-axis
+  ctx.beginPath();
+  ctx.moveTo(padding, canvas.height - padding);
+  ctx.lineTo(canvas.width - padding, canvas.height - padding);
+  ctx.stroke();
+  
   if (data.length > 0) {
     const keys = Object.keys(data[0]);
     const numericKey = keys.find(key => typeof data[0][key] === 'number');
@@ -219,6 +241,33 @@ function drawChart() {
       const maxValue = Math.max(...data.map(item => item[numericKey] || 0));
       const barWidth = chartWidth / data.length * 0.8;
       const barSpacing = chartWidth / data.length * 0.2;
+      
+      // Y-axis labels and title
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '12px Inter';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      
+      for (let i = 0; i <= 5; i++) {
+        const value = (maxValue / 5) * i;
+        const y = canvas.height - padding - (chartHeight / 5) * i;
+        ctx.fillText(Math.round(value).toString(), padding - 10, y);
+      }
+      
+      // Y-axis title
+      ctx.save();
+      ctx.translate(20, canvas.height / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 14px Inter';
+      ctx.fillText(numericKey.charAt(0).toUpperCase() + numericKey.slice(1), 0, 0);
+      ctx.restore();
+      
+      // X-axis title
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.font = 'bold 14px Inter';
+      ctx.fillText(labelKey.charAt(0).toUpperCase() + labelKey.slice(1), canvas.width / 2, canvas.height - 20);
       
       data.forEach((item, index) => {
         const value = item[numericKey] || 0;
@@ -240,21 +289,24 @@ function drawChart() {
         ctx.fillRect(x, y, barWidth, barHeight);
         ctx.shadowBlur = 0;
         
-        // Labels
+        // X-axis labels (data labels)
         ctx.fillStyle = '#ffffff';
-        ctx.font = '12px Inter';
+        ctx.font = '10px Inter';
         ctx.textAlign = 'center';
-        ctx.fillText(
-          String(item[labelKey]).substring(0, 10), 
-          x + barWidth / 2, 
-          canvas.height - padding + 20
-        );
+        ctx.textBaseline = 'top';
+        const label = String(item[labelKey]).substring(0, 8);
+        ctx.fillText(label, x + barWidth / 2, canvas.height - padding + 5);
+        
+        // Value labels on top of bars
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(value.toString(), x + barWidth / 2, y - 5);
       });
     } else {
       // Fallback: draw a simple message
       ctx.fillStyle = '#ffffff';
       ctx.font = '24px Inter';
       ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
       ctx.fillText('Data Loaded Successfully', canvas.width / 2, canvas.height / 2);
       ctx.font = '16px Inter';
       ctx.fillText(\`\${data.length} records found\`, canvas.width / 2, canvas.height / 2 + 40);
