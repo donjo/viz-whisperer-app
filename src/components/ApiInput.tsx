@@ -4,6 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Download, Sparkles } from 'lucide-react';
 
@@ -161,24 +162,26 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
               <Badge variant="secondary">{currentData.structure.totalRecords} records</Badge>
             </div>
             
-            <div className="grid gap-3">
-              {currentData.structure.fields.map((field, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm">{field.name}</span>
-                    <Badge 
-                      variant="outline" 
-                      className={`data-${field.type === 'string' ? 'string' : field.type === 'number' ? 'number' : field.type === 'boolean' ? 'boolean' : 'null'}`}
-                    >
-                      {field.type}
-                    </Badge>
+            <ScrollArea className="h-80">
+              <div className="grid gap-3 pr-4">
+                {currentData.structure.fields.map((field, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm">{field.name}</span>
+                      <Badge 
+                        variant="outline" 
+                        className={`data-${field.type === 'string' ? 'string' : field.type === 'number' ? 'number' : field.type === 'boolean' ? 'boolean' : 'null'}`}
+                      >
+                        {field.type}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-muted-foreground font-mono truncate max-w-32">
+                      {String(field.sample)}
+                    </span>
                   </div>
-                  <span className="text-xs text-muted-foreground font-mono truncate max-w-32">
-                    {String(field.sample)}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
         </Card>
       )}
