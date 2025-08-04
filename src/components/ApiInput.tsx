@@ -28,7 +28,7 @@ interface ApiInputProps {
 }
 
 export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }: ApiInputProps) => {
-  const [apiUrl, setApiUrl] = useState('https://api.github.com/repos/microsoft/vscode/contributors');
+  const [apiUrl, setApiUrl] = useState('https://api.github.com/repos/denoland/deno/contributors');
   const [isLoading, setIsLoading] = useState(false);
   const [currentData, setCurrentData] = useState<ApiData | null>(null);
   const [visualizationPrompt, setVisualizationPrompt] = useState('');
