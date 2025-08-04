@@ -45,16 +45,24 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
 
     setIsLoading(true);
     try {
-      // Add CORS proxy for demo purposes - in production you'd handle this differently
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-      const response = await fetch(proxyUrl);
-      const result = await response.json();
-      
+      // Try direct fetch first (for CORS-enabled APIs like GitHub)
+      let response;
       let data;
+      
       try {
-        data = JSON.parse(result.contents);
-      } catch {
-        data = result.contents;
+        response = await fetch(apiUrl);
+        data = await response.json();
+      } catch (corsError) {
+        // Fallback to CORS proxy for non-CORS enabled APIs
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+        response = await fetch(proxyUrl);
+        const result = await response.json();
+        
+        try {
+          data = JSON.parse(result.contents);
+        } catch {
+          data = result.contents;
+        }
       }
 
       // Analyze data structure
