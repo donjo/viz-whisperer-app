@@ -80,7 +80,7 @@ export class CodeGenerator {
        prompt.toLowerCase().includes('visualiz'));
     
     const title = isPromptUseful 
-      ? `${dataSourceName} - ${prompt.charAt(0).toUpperCase() + prompt.slice(0, 40)}${prompt.length > 40 ? '...' : ''}`
+      ? `${dataSourceName} - ${prompt.charAt(0).toUpperCase() + prompt.slice(0, 20)}${prompt.length > 20 ? '...' : ''}`
       : dataSourceName;
     
     return `<div class="visualization-container">
