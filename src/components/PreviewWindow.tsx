@@ -115,7 +115,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid w-full grid-cols-4 mx-4 mt-4">
+        <TabsList className="grid grid-cols-4 mx-4 mt-4 max-w-full overflow-hidden">{/* Fixed overflow by removing w-full and adding max-w-full overflow-hidden */}
           <TabsTrigger value="preview">
             <Eye className="w-4 h-4 mr-1" />
             Preview
