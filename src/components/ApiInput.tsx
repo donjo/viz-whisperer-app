@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Download, Sparkles } from 'lucide-react';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useToast } from "@/hooks/use-toast";
+import { Download, Loader2, Sparkles } from "lucide-react";
 
 interface ApiData {
   url: string;
@@ -27,11 +27,15 @@ interface ApiInputProps {
   isGenerating: boolean;
 }
 
-export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }: ApiInputProps) => {
-  const [apiUrl, setApiUrl] = useState('https://api.github.com/repos/denoland/deno/contributors');
+export const ApiInput = (
+  { onDataFetched, onVisualizationRequest, isGenerating }: ApiInputProps,
+) => {
+  const [apiUrl, setApiUrl] = useState(
+    "https://api.github.com/repos/denoland/deno/contributors",
+  );
   const [isLoading, setIsLoading] = useState(false);
   const [currentData, setCurrentData] = useState<ApiData | null>(null);
-  const [visualizationPrompt, setVisualizationPrompt] = useState('');
+  const [visualizationPrompt, setVisualizationPrompt] = useState("");
   const { toast } = useToast();
 
   const fetchApiData = async () => {
@@ -39,7 +43,7 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
       toast({
         title: "URL Required",
         description: "Please enter a valid API endpoint URL",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -49,16 +53,18 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
       // Try direct fetch first (for CORS-enabled APIs like GitHub)
       let response;
       let data;
-      
+
       try {
         response = await fetch(apiUrl);
         data = await response.json();
       } catch (corsError) {
         // Fallback to CORS proxy for non-CORS enabled APIs
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${
+          encodeURIComponent(apiUrl)
+        }`;
         response = await fetch(proxyUrl);
         const result = await response.json();
-        
+
         try {
           data = JSON.parse(result.contents);
         } catch {
@@ -80,8 +86,8 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
       const sampleItem = analyzeData(data);
       const fields = Object.entries(sampleItem).map(([name, value]) => ({
         name,
-        type: Array.isArray(value) ? 'array' : typeof value,
-        sample: Array.isArray(value) ? `[${value.length} items]` : value
+        type: Array.isArray(value) ? "array" : typeof value,
+        sample: Array.isArray(value) ? `[${value.length} items]` : value,
       }));
 
       const apiData: ApiData = {
@@ -89,22 +95,24 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
         data,
         structure: {
           fields,
-          totalRecords: Array.isArray(data) ? data.length : 1
-        }
+          totalRecords: Array.isArray(data) ? data.length : 1,
+        },
       };
 
       setCurrentData(apiData);
       onDataFetched(apiData);
-      
+
       toast({
         title: "Data Fetched Successfully",
-        description: `Found ${fields.length} fields with ${apiData.structure.totalRecords} records`
+        description:
+          `Found ${fields.length} fields with ${apiData.structure.totalRecords} records`,
       });
     } catch (error) {
       toast({
         title: "Failed to Fetch Data",
-        description: "Please check the URL and try again. Make sure the API supports CORS.",
-        variant: "destructive"
+        description:
+          "Please check the URL and try again. Make sure the API supports CORS.",
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -116,7 +124,7 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
       toast({
         title: "Description Required",
         description: "Please describe how you want to visualize the data",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
@@ -131,23 +139,27 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
         <div className="space-y-4">
           <div>
             <h2 className="text-xl font-semibold mb-2">Data Source</h2>
-            <p className="text-muted-foreground text-sm">Enter a public API endpoint to analyze and visualize its data</p>
+            <p className="text-muted-foreground text-sm">
+              Enter a public API endpoint to analyze and visualize its data
+            </p>
           </div>
-          
+
           <div className="flex gap-2">
             <Input
               placeholder="https://api.example.com/data"
               value={apiUrl}
               onChange={(e) => setApiUrl(e.target.value)}
               className="flex-1 font-mono text-sm"
-              onKeyDown={(e) => e.key === 'Enter' && fetchApiData()}
+              onKeyDown={(e) => e.key === "Enter" && fetchApiData()}
             />
-            <Button 
+            <Button
               onClick={fetchApiData}
               disabled={isLoading}
-              variant="glow"
+              variant="default"
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Analyze'}
+              {isLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : "Analyze"}
             </Button>
           </div>
         </div>
@@ -159,18 +171,31 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold">Data Structure</h3>
-              <Badge variant="secondary">{currentData.structure.totalRecords} records</Badge>
+              <Badge variant="secondary">
+                {currentData.structure.totalRecords} records
+              </Badge>
             </div>
-            
+
             <ScrollArea className="h-80">
               <div className="grid gap-3 pr-4">
                 {currentData.structure.fields.map((field, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                  >
                     <div className="flex items-center gap-3">
                       <span className="font-mono text-sm">{field.name}</span>
-                      <Badge 
-                        variant="outline" 
-                        className={`data-${field.type === 'string' ? 'string' : field.type === 'number' ? 'number' : field.type === 'boolean' ? 'boolean' : 'null'}`}
+                      <Badge
+                        variant="outline"
+                        className={`data-${
+                          field.type === "string"
+                            ? "string"
+                            : field.type === "number"
+                            ? "number"
+                            : field.type === "boolean"
+                            ? "boolean"
+                            : "null"
+                        }`}
                       >
                         {field.type}
                       </Badge>
@@ -192,33 +217,37 @@ export const ApiInput = ({ onDataFetched, onVisualizationRequest, isGenerating }
           <div className="space-y-4">
             <div>
               <h3 className="text-lg font-semibold">Visualization Prompt</h3>
-              <p className="text-muted-foreground text-sm">Describe how you want to visualize this data</p>
+              <p className="text-muted-foreground text-sm">
+                Describe how you want to visualize this data
+              </p>
             </div>
-            
+
             <Textarea
               placeholder="Create a bar chart showing the distribution of categories, with colors based on values..."
               value={visualizationPrompt}
               onChange={(e) => setVisualizationPrompt(e.target.value)}
               className="min-h-24"
             />
-            
-            <Button 
+
+            <Button
               onClick={handleVisualizationRequest}
               disabled={isGenerating}
               variant="secondary"
               className="w-full"
             >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Generating Visualization...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Visualization
-                </>
-              )}
+              {isGenerating
+                ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Generating Visualization...
+                  </>
+                )
+                : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Visualization
+                  </>
+                )}
             </Button>
           </div>
         </Card>
