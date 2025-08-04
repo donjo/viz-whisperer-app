@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ApiInput } from '@/components/ApiInput';
 import { PreviewWindow } from '@/components/PreviewWindow';
-import { ChatInterface } from '@/components/ChatInterface';
+
 import { CodeGenerator } from '@/utils/CodeGenerator';
 import { Badge } from '@/components/ui/badge';
 import { Database, Sparkles } from 'lucide-react';
@@ -97,21 +97,13 @@ const Index = () => {
       {/* Main Content */}
       <main className="container mx-auto px-6 py-6">
         <div className="grid lg:grid-cols-2 gap-6 h-[calc(100vh-200px)]">
-          {/* Left Panel - Input & Chat */}
-          <div className="space-y-6">
-            <div className="h-[60%]">
-              <ApiInput
-                onDataFetched={handleDataFetched}
-                onVisualizationRequest={handleVisualizationRequest}
-                isGenerating={isGenerating}
-              />
-            </div>
-            <div className="h-[40%]">
-              <ChatInterface
-                onMessage={handleChatMessage}
-                isProcessing={isChatProcessing}
-              />
-            </div>
+          {/* Left Panel - Input */}
+          <div>
+            <ApiInput
+              onDataFetched={handleDataFetched}
+              onVisualizationRequest={handleVisualizationRequest}
+              isGenerating={isGenerating}
+            />
           </div>
 
           {/* Right Panel - Preview */}
