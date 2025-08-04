@@ -92,14 +92,6 @@ export class CodeGenerator {
   <div class="chart-container">
     <canvas id="dataChart" width="800" height="400"></canvas>
   </div>
-  <div class="data-info">
-    <h3>Data Fields:</h3>
-    <ul>
-      ${apiData.structure.fields.map(field => 
-        `<li><strong>${field.name}</strong> (${field.type}): ${field.sample}</li>`
-      ).join('')}
-    </ul>
-  </div>
 </div>`;
   }
 
