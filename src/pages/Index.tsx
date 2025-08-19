@@ -86,7 +86,7 @@ const Index = () => {
               <div>
                 <h1 className="text-2xl font-bold">Vibe Vizing</h1>
                 <p className="text-sm text-muted-foreground">
-                  Build data visualizations with custom controls
+                  Build data visualizations through natural language
                 </p>
               </div>
             </div>
@@ -130,7 +130,7 @@ const Index = () => {
           <ResizablePanel defaultSize={70} minSize={40}>
             <ResizablePanelGroup direction="vertical" className="h-full">
               {/* Preview Window (Top) */}
-              <ResizablePanel defaultSize={75} minSize={50}>
+              <ResizablePanel defaultSize={70} minSize={50}>
                 <PreviewWindow
                   generatedCode={generatedCode}
                   isLoading={isGenerating}
@@ -145,7 +145,7 @@ const Index = () => {
               />
 
               {/* Visualization Chat (Bottom) */}
-              <ResizablePanel defaultSize={25} minSize={15} maxSize={50} className="bg-card/20">
+              <ResizablePanel defaultSize={30} minSize={15} maxSize={50} className="bg-card/20">
                 <VisualizationChat
                   hasData={!!apiData}
                   onVisualizationRequest={handleVisualizationRequest}

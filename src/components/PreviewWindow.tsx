@@ -85,7 +85,7 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
     if (generatedCode) {
       loadIframeContent();
     }
-  }, [generatedCode, activeTab]);
+  }, [generatedCode]);
 
   const downloadCode = () => {
     if (!generatedCode) return;
@@ -202,15 +202,18 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
         </TabsList>
 
         <div className="flex-1 p-4">
+          {/* Keep iframe always mounted to preserve chart state */}
+          <div className={`h-full rounded-lg overflow-hidden border border-border/50 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
+            <iframe
+              ref={iframeRef}
+              className="w-full h-full"
+              sandbox="allow-scripts allow-same-origin"
+              title="Data Visualization Preview"
+            />
+          </div>
+          
           <TabsContent value="preview" className="h-full mt-0">
-            <div className="h-full rounded-lg overflow-hidden border border-border/50">
-              <iframe
-                ref={iframeRef}
-                className="w-full h-full"
-                sandbox="allow-scripts allow-same-origin"
-                title="Data Visualization Preview"
-              />
-            </div>
+            {/* This is just a placeholder to maintain tab structure */}
           </TabsContent>
 
           <TabsContent value="html" className="h-full mt-0">
