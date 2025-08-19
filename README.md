@@ -1,73 +1,113 @@
-# Welcome to your Lovable project
+# Viz Whisperer App
 
-## Project info
+A React application built with Vite, TypeScript, and shadcn-ui, powered by Deno 2.
 
-**URL**: https://lovable.dev/projects/a8e32cbf-73df-4dab-a2d0-3cc8c13115b2
+## Prerequisites
 
-## How can I edit this code?
+- [Deno 2.x](https://docs.deno.com/runtime/getting_started/installation/) installed
 
-There are several ways of editing your application.
+## Getting Started
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/a8e32cbf-73df-4dab-a2d0-3cc8c13115b2) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Clone and Install
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd viz-whisperer-app
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+# Install dependencies (Deno will handle npm packages automatically)
+deno install
 ```
 
-**Edit a file directly in GitHub**
+### Development
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+# Start the development server
+deno task dev
 
-**Use GitHub Codespaces**
+# The app will be available at http://localhost:8080
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Building
 
-## What technologies are used for this project?
+```sh
+# Build for production
+deno task build
 
-This project is built with:
+# Build for development
+deno task build:dev
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Preview Production Build
 
-## How can I deploy this project?
+```sh
+# Preview the production build
+deno task preview
+```
 
-Simply open [Lovable](https://lovable.dev/projects/a8e32cbf-73df-4dab-a2d0-3cc8c13115b2) and click on Share -> Publish.
+### Linting and Formatting
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+# Run Deno's built-in linter
+deno task lint
 
-Yes, you can!
+# Format code with Deno's formatter
+deno task fmt
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Type check the project
+deno task check
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## Why Deno?
+
+This project uses Deno 2, which provides:
+
+- **Native TypeScript support** - No need for separate TypeScript compilation
+- **Built-in tools** - Linting, formatting, and testing without additional dependencies
+- **Simplified configuration** - Removed ESLint and other config files
+- **npm compatibility** - Can still use all npm packages from package.json
+- **Better security** - Deno's permission system (currently using -A flag for development)
+
+## Technologies
+
+- **Deno 2** - JavaScript/TypeScript runtime
+- **Vite** - Build tool and dev server
+- **React 18** - UI framework
+- **TypeScript** - Type safety
+- **shadcn-ui** - Component library
+- **Tailwind CSS** - Utility-first CSS framework
+- **Supabase** - Backend services
+
+## Project Structure
+
+```
+├── deno.json          # Deno configuration and task definitions
+├── package.json       # npm dependencies (used by Deno)
+├── vite.config.ts     # Vite configuration
+├── tailwind.config.ts # Tailwind CSS configuration
+├── tsconfig.json      # TypeScript configuration
+├── src/
+│   ├── main.tsx       # Application entry point
+│   ├── App.tsx        # Main App component
+│   ├── components/    # React components
+│   ├── pages/         # Page components
+│   ├── hooks/         # Custom React hooks
+│   ├── lib/           # Utility functions
+│   └── integrations/  # External service integrations
+└── public/            # Static assets
+```
+
+## Notes on Deno Setup
+
+This project was converted from a Node.js/npm setup to Deno 2. The following changes were made:
+
+- Added `deno.json` for Deno configuration and task definitions
+- Updated `vite.config.ts` to use Deno-compatible imports
+- Removed `eslint.config.js` (using Deno's built-in linter instead)
+- Removed `tsconfig.node.json` (not needed with Deno)
+- Kept `package.json` for npm package compatibility
+- Kept `postcss.config.js` and `tailwind.config.ts` as they're still needed
+
+The application code remains unchanged and all npm packages work seamlessly with Deno's npm compatibility layer.
