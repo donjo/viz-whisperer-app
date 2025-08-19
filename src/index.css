@@ -174,4 +174,51 @@
   .transition-bounce {
     transition: var(--transition-bounce);
   }
+  
+  /* Resizable Panel Handles */
+  [data-panel-resize-handle-enabled] {
+    @apply relative bg-border/30 hover:bg-primary/20 transition-colors;
+  }
+  
+  [data-panel-resize-handle-enabled]:hover {
+    @apply bg-primary/30;
+  }
+  
+  [data-panel-resize-handle-enabled][data-resize-handle-active] {
+    @apply bg-primary/50;
+  }
+  
+  /* Horizontal resize handle */
+  [data-panel-resize-handle-enabled][data-orientation="horizontal"] {
+    @apply w-1 hover:w-1.5 transition-all cursor-col-resize;
+  }
+  
+  [data-panel-resize-handle-enabled][data-orientation="horizontal"]:hover::before {
+    content: "";
+    @apply absolute inset-y-0 left-1/2 -translate-x-1/2 w-8;
+  }
+  
+  /* Vertical resize handle */
+  [data-panel-resize-handle-enabled][data-orientation="vertical"] {
+    @apply h-1 hover:h-1.5 transition-all cursor-row-resize;
+  }
+  
+  [data-panel-resize-handle-enabled][data-orientation="vertical"]:hover::before {
+    content: "";
+    @apply absolute inset-x-0 top-1/2 -translate-y-1/2 h-8;
+  }
+  
+  /* Handle grip indicator */
+  [data-panel-resize-handle-enabled]::after {
+    content: "";
+    @apply absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-0 hover:opacity-100 transition-opacity;
+  }
+  
+  [data-panel-resize-handle-enabled][data-orientation="horizontal"]::after {
+    @apply w-1 h-8 bg-primary/50 rounded-full;
+  }
+  
+  [data-panel-resize-handle-enabled][data-orientation="vertical"]::after {
+    @apply w-8 h-1 bg-primary/50 rounded-full;
+  }
 }

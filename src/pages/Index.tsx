@@ -6,6 +6,7 @@ import { CodeGenerator } from '@/utils/CodeGenerator';
 import { Badge } from '@/components/ui/badge';
 import { Database, Sparkles, AlertCircle } from 'lucide-react';
 import { anthropicService } from '@/services/anthropicService';
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 interface ApiData {
   url: string;
   data: any;
@@ -55,10 +56,10 @@ const Index = () => {
       setIsGenerating(false);
     }
   };
-  return <div className="min-h-screen bg-background">
+  return <div className="h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="container mx-auto px-6 py-4">
+      <header className="flex-shrink-0 border-b border-border/50 bg-card/50 backdrop-blur-sm">
+        <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
@@ -87,28 +88,44 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-6">
-        <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-6 h-[calc(100vh-180px)]">
+      <main className="flex-1 overflow-hidden">
+        <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Left Panel - Data Input */}
-          <div className="lg:col-span-1">
-            <ApiInput onDataFetched={handleDataFetched} />
-          </div>
-
-          {/* Middle Panel - Visualization Chat */}
-          <div className="lg:col-span-1 xl:col-span-1">
-            <VisualizationChat 
-              hasData={!!apiData}
-              onVisualizationRequest={handleVisualizationRequest}
-              isGenerating={isGenerating}
-              generatedCode={generatedCode}
-            />
-          </div>
-
-          {/* Right Panel - Preview */}
-          <div className="lg:col-span-2 xl:col-span-1">
-            <PreviewWindow generatedCode={generatedCode} isLoading={isGenerating} />
-          </div>
-        </div>
+          <ResizablePanel 
+            defaultSize={30} 
+            minSize={20} 
+            maxSize={50}
+            className="bg-card/30"
+          >
+            <div className="h-full overflow-y-auto p-4">
+              <ApiInput onDataFetched={handleDataFetched} />
+            </div>
+          </ResizablePanel>
+          
+          <ResizableHandle withHandle className="bg-border/50 hover:bg-border transition-colors" />
+          
+          {/* Right Panel - Preview + Chat */}
+          <ResizablePanel defaultSize={70} minSize={40}>
+            <ResizablePanelGroup direction="vertical" className="h-full">
+              {/* Preview Window (Top) */}
+              <ResizablePanel defaultSize={75} minSize={50}>
+                <PreviewWindow generatedCode={generatedCode} isLoading={isGenerating} />
+              </ResizablePanel>
+              
+              <ResizableHandle withHandle className="bg-border/50 hover:bg-border transition-colors" />
+              
+              {/* Visualization Chat (Bottom) */}
+              <ResizablePanel defaultSize={25} minSize={15} maxSize={50} className="bg-card/20">
+                <VisualizationChat 
+                  hasData={!!apiData}
+                  onVisualizationRequest={handleVisualizationRequest}
+                  isGenerating={isGenerating}
+                  generatedCode={generatedCode}
+                />
+              </ResizablePanel>
+            </ResizablePanelGroup>
+          </ResizablePanel>
+        </ResizablePanelGroup>
       </main>
     </div>;
 };

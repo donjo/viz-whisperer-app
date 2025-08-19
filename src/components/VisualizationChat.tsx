@@ -144,47 +144,42 @@ export const VisualizationChat = ({
 
   if (!hasData) {
     return (
-      <Card className="panel-glass p-6">
+      <div className="h-full flex items-center justify-center">
         <div className="text-center text-muted-foreground">
-          <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-semibold mb-2">Ready to Visualize</h3>
-          <p>Fetch some data first to start creating visualizations</p>
+          <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
+          <h3 className="text-sm font-semibold mb-1">Ready to Visualize</h3>
+          <p className="text-xs">Fetch some data first to start creating visualizations</p>
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="panel-glass h-full flex flex-col">
-      <div className="p-4 border-b border-border/50">
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border/50 flex-shrink-0">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-5 h-5 text-primary" />
-          <h3 className="text-lg font-semibold">
+          <Sparkles className="w-4 h-4 text-primary" />
+          <h3 className="text-sm font-semibold">
             {hasInitialVisualization ? 'Refine Your Visualization' : 'Create Visualization'}
           </h3>
           {hasInitialVisualization && (
-            <Badge variant="outline">Interactive</Badge>
+            <Badge variant="outline" className="text-xs">Interactive</Badge>
           )}
         </div>
-        <p className="text-sm text-muted-foreground mt-1">
-          {hasInitialVisualization 
-            ? 'Describe changes to improve your visualization'
-            : 'Describe how you want to visualize your data'
-          }
-        </p>
       </div>
 
-      {/* Messages */}
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
+      {/* Messages Area */}
+      <ScrollArea className="flex-1 px-4 py-3">
+        <div className="space-y-3">
           {!hasInitialVisualization && messages.length === 0 && (
-            <div className="bg-muted/30 border border-dashed border-muted-foreground/20 rounded-lg p-4">
-              <h4 className="font-medium mb-2">💡 Try these prompts:</h4>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <div>• "Create a bar chart showing commit activity over time"</div>
-                <div>• "Build an interactive pie chart with the data"</div>
-                <div>• "Make a line graph with animated transitions"</div>
-                <div>• "Create a dashboard with multiple chart types"</div>
+            <div className="bg-muted/30 border border-dashed border-muted-foreground/20 rounded-lg p-3">
+              <h4 className="font-medium mb-2 text-sm">💡 Quick prompts:</h4>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                <div>• "Bar chart of commit activity"</div>
+                <div>• "Interactive pie chart"</div>
+                <div>• "Line graph with animations"</div>
+                <div>• "Dashboard with charts"</div>
               </div>
             </div>
           )}
@@ -192,39 +187,39 @@ export const VisualizationChat = ({
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-2 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.type === 'system' && (
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                  <Bot className="w-4 h-4 text-primary" />
+                <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-3 h-3 text-primary" />
                 </div>
               )}
               
               <div
-                className={`max-w-[80%] px-4 py-2 rounded-lg ${
+                className={`max-w-[80%] px-3 py-2 rounded-lg ${
                   message.type === 'user'
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-foreground'
                 }`}
               >
                 <p className="text-sm whitespace-pre-line">{message.content}</p>
-                <p className="text-xs opacity-60 mt-1">
+                <p className="text-[10px] opacity-60 mt-1">
                   {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
                 {message.isGenerating && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="flex items-center gap-1 mt-2">
+                    <div className="flex gap-0.5">
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                     </div>
                   </div>
                 )}
               </div>
 
               {message.type === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
-                  <User className="w-4 h-4 text-secondary" />
+                <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
+                  <User className="w-3 h-3 text-secondary" />
                 </div>
               )}
             </div>
@@ -234,40 +229,39 @@ export const VisualizationChat = ({
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="p-4 border-t border-border/50">
-        <div className="space-y-3">
+      {/* Input Section */}
+      <div className="border-t border-border/50 bg-card/10 p-3 flex-shrink-0">
+        <div className="flex gap-2 items-stretch">
           <Textarea
             placeholder={getPlaceholderText()}
             value={currentPrompt}
             onChange={(e) => setCurrentPrompt(e.target.value)}
             onKeyPress={handleKeyPress}
-            className="min-h-[60px] resize-none"
+            className="flex-1 resize-none text-sm py-2 px-3"
             disabled={isGenerating}
+            rows={1}
           />
           <Button
             onClick={handleSendPrompt}
             disabled={isGenerating || !currentPrompt.trim()}
             variant="secondary"
-            className="w-full"
+            className="px-6 self-stretch"
           >
             {isGenerating ? (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-current rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span>Generating...</span>
+              <div className="flex items-center gap-2">
+                <div className="flex gap-1">
+                  <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                 </div>
-              </>
+                <span>Generating...</span>
+              </div>
             ) : (
               getButtonText()
             )}
           </Button>
         </div>
       </div>
-    </Card>
+    </div>
   );
 };

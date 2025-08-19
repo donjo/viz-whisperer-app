@@ -117,9 +117,9 @@ export const ApiInput = (
 
 
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col gap-6">
       {/* API Input Section */}
-      <Card className="panel-glass p-6">
+      <Card className="panel-glass p-6 flex-shrink-0">
         <div className="space-y-4">
           <div>
             <h2 className="text-xl font-semibold mb-2">Data Source</h2>
@@ -151,16 +151,16 @@ export const ApiInput = (
 
       {/* Data Structure Display */}
       {currentData && (
-        <Card className="panel-glass p-6">
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold">Data Structure</h3>
-              <Badge variant="secondary">
-                {currentData.structure.totalRecords} records
-              </Badge>
-            </div>
+        <Card className="panel-glass p-6 flex-1 min-h-0 flex flex-col">
+          <div className="flex items-center gap-2 mb-4 flex-shrink-0">
+            <h3 className="text-lg font-semibold">Data Structure</h3>
+            <Badge variant="secondary">
+              {currentData.structure.totalRecords} records
+            </Badge>
+          </div>
 
-            <ScrollArea className="h-80">
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-full">
               <div className="grid gap-3 pr-4">
                 {currentData.structure.fields.map((field, index) => (
                   <div

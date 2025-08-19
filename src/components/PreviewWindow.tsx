@@ -110,7 +110,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
 
   if (isLoading) {
     return (
-      <Card className="panel-glass h-full flex items-center justify-center">
+      <div className="h-full bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 mx-auto rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
             <Code className="w-6 h-6 text-primary" />
@@ -120,13 +120,13 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
             <p className="text-muted-foreground">Creating your data visualization code...</p>
           </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (!generatedCode) {
     return (
-      <Card className="panel-glass h-full flex items-center justify-center">
+      <div className="h-full bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
             <Eye className="w-6 h-6 text-muted-foreground" />
@@ -136,12 +136,12 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
             <p className="text-muted-foreground">Your visualization will appear here once generated</p>
           </div>
         </div>
-      </Card>
+      </div>
     );
   }
 
   return (
-    <Card className="panel-glass h-full flex flex-col">
+    <div className="h-full bg-background flex flex-col">
       <div className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -284,6 +284,6 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
           </TabsContent>
         </div>
       </Tabs>
-    </Card>
+    </div>
   );
 };
