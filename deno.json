@@ -31,6 +31,7 @@
     "lib": ["dom", "dom.iterable", "esnext"]
   },
   "imports": {
-    "@/": "./src/"
+    "@/": "./src/",
+    "@std/http": "jsr:@std/http@^1.0.0"
   }
 }

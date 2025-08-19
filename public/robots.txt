@@ -1,14 +1,37 @@
+# Robots.txt for Viz Whisperer App
+# This file tells search engines what they can and cannot crawl
+
+# Allow all major search engines to crawl the main site
 User-agent: Googlebot
-Allow: /
-
 User-agent: Bingbot
+User-agent: DuckDuckBot
 Allow: /
 
+# Block access to API endpoints - these are for the app, not search engines
+Disallow: /api/
+
+# Block access to development and build files
+Disallow: /src/
+Disallow: /node_modules/
+Disallow: /.git/
+Disallow: /dist/
+
+# Block access to configuration files
+Disallow: /*.json
+Disallow: /*.config.*
+Disallow: /*.lock
+
+# Allow social media crawlers for better sharing
 User-agent: Twitterbot
-Allow: /
-
 User-agent: facebookexternalhit
+User-agent: LinkedInBot
+User-agent: WhatsApp
 Allow: /
 
+# Set crawl delay for all bots to be respectful of server resources
 User-agent: *
 Allow: /
+Crawl-delay: 1
+
+# If you create a sitemap later, uncomment this line:
+# Sitemap: https://yourdomain.com/sitemap.xml

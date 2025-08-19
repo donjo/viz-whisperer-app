@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Download, Play, Code, Eye, Copy } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AlertCircle, Code, Copy, Download, Eye, Play } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface GeneratedCode {
   html: string;
@@ -16,79 +16,85 @@ interface GeneratedCode {
 interface PreviewWindowProps {
   generatedCode: GeneratedCode | null;
   isLoading: boolean;
+  error?: string | null;
+  onRetry?: () => void;
 }
 
-export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) => {
-  const [activeTab, setActiveTab] = useState('preview');
+export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: PreviewWindowProps) => {
+  const [activeTab, setActiveTab] = useState("preview");
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (generatedCode && iframeRef.current) {
-      console.log('Loading visualization into iframe...', {
-        hasHtml: !!generatedCode.html,
-        hasCss: !!generatedCode.css,
-        hasJs: !!generatedCode.javascript,
-        fullCodeLength: generatedCode.fullCode.length
-      });
+  const loadIframeContent = () => {
+    if (!generatedCode || !iframeRef.current) return;
+    
+    console.log("Loading visualization into iframe...", {
+      hasHtml: !!generatedCode.html,
+      hasCss: !!generatedCode.css,
+      hasJs: !!generatedCode.javascript,
+      fullCodeLength: generatedCode.fullCode.length,
+    });
+
+    const iframe = iframeRef.current;
+    
+    try {
+      console.log("Using data URL method to load iframe content...");
+      const dataUrl = `data:text/html;charset=utf-8,${
+        encodeURIComponent(generatedCode.fullCode)
+      }`;
       
-      const iframe = iframeRef.current;
+      // Clean up any existing event listeners
+      iframe.onload = null;
+      iframe.onerror = null;
       
-      // Give iframe a moment to load
-      setTimeout(() => {
+      // Set up event-driven loading
+      iframe.onload = () => {
+        console.log("Iframe loaded successfully via data URL");
+        
         try {
           const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          
-          if (iframeDoc) {
-            console.log('Writing to iframe document...');
-            iframeDoc.open();
-            iframeDoc.write(generatedCode.fullCode);
-            iframeDoc.close();
+          if (iframeDoc && iframeDoc.body) {
+            const canvases = iframeDoc.body.querySelectorAll("canvas");
+            const scripts = iframeDoc.body.querySelectorAll("script");
+            console.log(`Content check: ${canvases.length} canvas(es), ${scripts.length} script(s)`);
             
-            // Add error handling to the iframe
-            iframe.onload = () => {
-              console.log('Iframe loaded successfully');
-              try {
-                const iframeWindow = iframe.contentWindow;
-                if (iframeWindow) {
-                  // Listen for errors in the iframe
-                  iframeWindow.addEventListener('error', (e) => {
-                    console.error('Error in iframe:', e);
-                  });
-                  
-                  // Check if content loaded
-                  setTimeout(() => {
-                    const body = iframeDoc.body;
-                    if (body && body.innerHTML.trim() === '') {
-                      console.warn('Iframe body is empty');
-                    } else {
-                      console.log('Iframe content loaded:', body?.innerHTML.substring(0, 100) + '...');
-                    }
-                  }, 500);
-                }
-              } catch (e) {
-                console.error('Error setting up iframe listeners:', e);
-              }
-            };
-            
-          } else {
-            console.error('Could not access iframe document');
+            if (canvases.length === 0) {
+              console.warn("No canvas elements found in iframe");
+            } else {
+              console.log("Canvas elements detected - chart should be rendering");
+            }
           }
-        } catch (error) {
-          console.error('Error writing to iframe:', error);
+        } catch (checkError) {
+          console.error("Error checking iframe content:", checkError);
         }
-      }, 100);
+      };
+      
+      iframe.onerror = (e) => {
+        console.error("Iframe loading error:", e);
+      };
+      
+      // Load the content
+      iframe.src = dataUrl;
+      
+    } catch (error) {
+      console.error("Failed to load iframe with data URL:", error);
     }
-  }, [generatedCode]);
+  };
+
+  useEffect(() => {
+    if (generatedCode) {
+      loadIframeContent();
+    }
+  }, [generatedCode, activeTab]);
 
   const downloadCode = () => {
     if (!generatedCode) return;
 
-    const blob = new Blob([generatedCode.fullCode], { type: 'text/html' });
+    const blob = new Blob([generatedCode.fullCode], { type: "text/html" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = 'data-visualization.html';
+    a.download = "data-visualization.html";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -96,7 +102,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
 
     toast({
       title: "Code Downloaded",
-      description: "Your visualization has been saved as an HTML file"
+      description: "Your visualization has been saved as an HTML file",
     });
   };
 
@@ -104,7 +110,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
     navigator.clipboard.writeText(code);
     toast({
       title: "Copied to Clipboard",
-      description: `${type} code copied successfully`
+      description: `${type} code copied successfully`,
     });
   };
 
@@ -124,6 +130,28 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
     );
   }
 
+  if (error) {
+    return (
+      <div className="h-full bg-background flex items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto p-6">
+          <div className="w-12 h-12 mx-auto rounded-full bg-destructive/20 flex items-center justify-center">
+            <AlertCircle className="w-6 h-6 text-destructive" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-destructive">Generation Failed</h3>
+            <p className="text-muted-foreground text-sm mb-4">{error}</p>
+            {onRetry && (
+              <Button onClick={onRetry} variant="outline" className="mt-4">
+                <Play className="w-4 h-4 mr-2" />
+                Try Again
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!generatedCode) {
     return (
       <div className="h-full bg-background flex items-center justify-center">
@@ -133,7 +161,9 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
           </div>
           <div>
             <h3 className="text-lg font-semibold">Preview Window</h3>
-            <p className="text-muted-foreground">Your visualization will appear here once generated</p>
+            <p className="text-muted-foreground">
+              Your visualization will appear here once generated
+            </p>
           </div>
         </div>
       </div>
@@ -186,7 +216,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
           <TabsContent value="html" className="h-full mt-0">
             <div className="relative h-full">
               <Button
-                onClick={() => copyToClipboard(generatedCode.html, 'HTML')}
+                onClick={() => copyToClipboard(generatedCode.html, "HTML")}
                 variant="ghost"
                 size="sm"
                 className="absolute top-2 right-2 z-10"
@@ -202,7 +232,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
           <TabsContent value="css" className="h-full mt-0">
             <div className="relative h-full">
               <Button
-                onClick={() => copyToClipboard(generatedCode.css, 'CSS')}
+                onClick={() => copyToClipboard(generatedCode.css, "CSS")}
                 variant="ghost"
                 size="sm"
                 className="absolute top-2 right-2 z-10"
@@ -218,7 +248,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
           <TabsContent value="js" className="h-full mt-0">
             <div className="relative h-full">
               <Button
-                onClick={() => copyToClipboard(generatedCode.javascript, 'JavaScript')}
+                onClick={() => copyToClipboard(generatedCode.javascript, "JavaScript")}
                 variant="ghost"
                 size="sm"
                 className="absolute top-2 right-2 z-10"
@@ -234,7 +264,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
           <TabsContent value="debug" className="h-full mt-0">
             <div className="relative h-full">
               <Button
-                onClick={() => copyToClipboard(generatedCode.fullCode, 'Full HTML')}
+                onClick={() => copyToClipboard(generatedCode.fullCode, "Full HTML")}
                 variant="ghost"
                 size="sm"
                 className="absolute top-2 right-2 z-10"
@@ -251,7 +281,7 @@ export const PreviewWindow = ({ generatedCode, isLoading }: PreviewWindowProps) 
                     <code>{generatedCode.fullCode}</code>
                   </pre>
                 </div>
-                
+
                 <div>
                   <h4 className="font-medium mb-2">🔍 Debug Info</h4>
                   <div className="grid grid-cols-2 gap-2 text-xs">
