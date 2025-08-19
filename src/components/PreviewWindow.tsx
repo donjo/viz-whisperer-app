@@ -427,42 +427,42 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                 <div>
                   <h4 className="font-medium mb-2">🏖️ Sandbox Deployment</h4>
                   <div className="space-y-2 text-xs">
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                      <strong>Rendering Mode:</strong> Deno Deploy Sandbox (Required)
+                    <div className="bg-blue-100 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 p-2 rounded">
+                      <strong className="text-blue-900 dark:text-blue-100">Rendering Mode:</strong> <span className="text-blue-800 dark:text-blue-200">Deno Deploy Sandbox (Required)</span>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                      <strong>Security:</strong> Fully isolated execution environment
+                    <div className="bg-blue-100 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 p-2 rounded">
+                      <strong className="text-blue-900 dark:text-blue-100">Security:</strong> <span className="text-blue-800 dark:text-blue-200">Fully isolated execution environment</span>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                      <strong>Status:</strong> {
+                    <div className="bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-2 rounded">
+                      <strong className="text-slate-900 dark:text-slate-100">Status:</strong> <span className="text-slate-800 dark:text-slate-200">{
                         deploymentError || deploymentStatus?.status === 'failed' ? '❌ Failed' :
                         deploymentStatus?.status === 'ready' ? '✅ Ready' :
                         deploymentStatus?.status === 'verifying' ? '🔍 Verifying' :
                         deploymentStatus?.status === 'deploying' ? '🚀 Deploying' :
                         deploymentStatus?.status === 'pending' ? '⏳ Pending' :
                         '🔄 Initializing'
-                      }
+                      }</span>
                     </div>
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                      <strong>Sandbox URL:</strong> 
+                    <div className="bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2 rounded">
+                      <strong className="text-amber-900 dark:text-amber-100">Sandbox URL:</strong> 
                       <br />
-                      <code className="text-xs break-all">
+                      <code className="text-xs break-all bg-amber-200 dark:bg-amber-900/30 px-1 py-0.5 rounded text-amber-900 dark:text-amber-100">
                         {deploymentStatus?.sandboxUrl || generatedCode.sandboxUrl || 'Not available'}
                       </code>
                     </div>
-                    <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                      <strong>Deployment:</strong> All visualizations are deployed to live Deno Deploy sandboxes. No local rendering.
+                    <div className="bg-green-100 dark:bg-green-950/40 border border-green-200 dark:border-green-800 p-2 rounded">
+                      <strong className="text-green-900 dark:text-green-100">Deployment:</strong> <span className="text-green-800 dark:text-green-200">All visualizations are deployed to live Deno Deploy sandboxes. No local rendering.</span>
                     </div>
                     {deploymentStatus?.events && deploymentStatus.events.length > 0 && (
-                      <div className="bg-gray-50 dark:bg-gray-900/20 p-2 rounded">
-                        <strong>Recent Events:</strong>
+                      <div className="bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-2 rounded">
+                        <strong className="text-slate-900 dark:text-slate-100">Recent Events:</strong>
                         <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
                           {deploymentStatus.events.slice(-5).map((event) => (
                             <div key={event.id} className="text-xs">
-                              <span className="font-mono text-muted-foreground">
+                              <span className="font-mono text-slate-600 dark:text-slate-400">
                                 {new Date(event.timestamp).toLocaleTimeString()}
                               </span>
-                              <span className="ml-2">{event.message}</span>
+                              <span className="ml-2 text-slate-800 dark:text-slate-200">{event.message}</span>
                             </div>
                           ))}
                         </div>

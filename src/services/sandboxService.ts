@@ -64,31 +64,61 @@ class SandboxService {
       // Generate Deno server code that serves the visualization
       const serverCode = this.generateServerCode(generatedCode);
       
+      // Log the complete server code to help debug deployment issues
+      console.log("📝 Generated server code (first 500 chars):");
+      console.log(serverCode.substring(0, 500) + "...");
+      
+      // Write the complete server code to a debug file for inspection
+      try {
+        await Deno.writeTextFile(`./debug-sandbox-code-${id}.js`, serverCode);
+        console.log(`💾 Complete server code written to debug-sandbox-code-${id}.js`);
+        
+        // Verify the code is syntactically valid JavaScript
+        try {
+          new Function(serverCode);
+          console.log("✅ Server code syntax validation passed");
+        } catch (syntaxError) {
+          console.error("❌ Server code syntax error:", syntaxError);
+          console.error("This might explain why the sandbox isn't working!");
+        }
+      } catch (writeError) {
+        console.warn("Failed to write debug file:", writeError);
+      }
+      
       // Create a JavaScript runtime with the server code
+      console.log("🔧 Creating JavaScript runtime in sandbox...");
       const runtime = await sandbox.createJsRuntime({
         code: serverCode
       });
+      console.log("✅ JavaScript runtime created successfully");
       
       if (visualizationId) {
         deploymentLogger.logEvent(visualizationId, 'deployment', 'Waiting for HTTP server to start');
       }
       
+      console.log("⏳ Waiting for HTTP server to be ready...");
       // Wait for the HTTP server to be ready
       const isReady = await runtime.httpReady;
+      console.log("🔍 HTTP server ready status:", isReady);
+      
       if (!isReady) {
         const error = "Sandbox runtime failed to start HTTP server";
+        console.error("❌", error);
         if (visualizationId) {
           deploymentLogger.markFailed(visualizationId, error, { sandboxId: id });
         }
         throw new Error(error);
       }
+      console.log("✅ HTTP server is ready!");
       
       if (visualizationId) {
         deploymentLogger.logEvent(visualizationId, 'deployment', 'Exposing HTTP endpoint');
       }
       
+      console.log("🌐 Exposing HTTP endpoint to get public URL...");
       // Get a real public URL by exposing the runtime (not the port)
       const url = await sandbox.exposeHttp(runtime);
+      console.log("🔗 Public URL generated:", url);
       
       const visualization: SandboxVisualization = {
         id,
@@ -301,20 +331,22 @@ ${javascript}
 </body>
 </html>`;
 
-    // Generate the Deno server code
+    // Generate the Deno server code with modern syntax
     return `
 // Deno server code for data visualization
 const html = ${JSON.stringify(fullHtml)};
 
-// Create the HTTP server
-Deno.serve({
-  port: 8000,
-  hostname: "0.0.0.0"
-}, (request) => {
+console.log("🚀 Starting data visualization server...");
+console.log("📄 HTML content length:", html.length, "chars");
+
+// Create the HTTP server using modern Deno.serve syntax
+Deno.serve((request) => {
   const url = new URL(request.url);
+  console.log("📨 Request:", request.method, url.pathname);
   
   // Handle different routes
   if (url.pathname === "/" || url.pathname === "/index.html") {
+    console.log("✅ Serving HTML content");
     return new Response(html, {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
@@ -346,7 +378,7 @@ Deno.serve({
   });
 });
 
-console.log("Data visualization server running on http://localhost:8000");
+console.log("✅ Data visualization server running and ready for requests");
 `;
   }
 
