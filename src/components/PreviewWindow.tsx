@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Code, Copy, Download, Eye, Play } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
+import { AlertCircle, Code, Copy, Download, Eye, Play, ExternalLink } from "lucide-react";
+import { useToast } from "@/hooks/use-toast.ts";
 
 interface GeneratedCode {
   html: string;
   css: string;
   javascript: string;
   fullCode: string;
+  sandboxId?: string;
+  sandboxUrl?: string;
 }
 
 interface PreviewWindowProps {
@@ -22,8 +24,37 @@ interface PreviewWindowProps {
 
 export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: PreviewWindowProps) => {
   const [activeTab, setActiveTab] = useState("preview");
+  const [sandboxResponse, setSandboxResponse] = useState<string>("");
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+  const [sandboxError, setSandboxError] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { toast } = useToast();
+  
+  // Load sandbox content from API
+  const loadSandboxContent = async () => {
+    if (!generatedCode?.sandboxId) return;
+    
+    setSandboxLoading(true);
+    setSandboxError(null);
+    
+    try {
+      // Make API call to get sandbox content
+      const response = await fetch(`/api/sandbox-content?id=${generatedCode.sandboxId}`);
+      
+      if (!response.ok) {
+        throw new Error(`Sandbox API returned ${response.status}: ${response.statusText}`);
+      }
+      
+      const html = await response.text();
+      setSandboxResponse(html);
+      console.log("Successfully loaded content from sandbox:", generatedCode.sandboxId);
+    } catch (error) {
+      console.error("Failed to load sandbox content:", error);
+      setSandboxError(error instanceof Error ? error.message : "Failed to load sandbox");
+    } finally {
+      setSandboxLoading(false);
+    }
+  };
 
   const loadIframeContent = () => {
     if (!generatedCode || !iframeRef.current) return;
@@ -83,7 +114,12 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
 
   useEffect(() => {
     if (generatedCode) {
-      loadIframeContent();
+      // Prefer sandbox rendering if available, fallback to iframe
+      if (generatedCode.sandboxId) {
+        loadSandboxContent();
+      } else {
+        loadIframeContent();
+      }
     }
   }, [generatedCode]);
 
@@ -176,7 +212,14 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-semibold">Generated Visualization</h3>
-            <Badge variant="secondary">Ready</Badge>
+            {generatedCode.sandboxId ? (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <ExternalLink className="w-3 h-3 mr-1" />
+                Sandbox
+              </Badge>
+            ) : (
+              <Badge variant="secondary">iframe</Badge>
+            )}
           </div>
           <Button
             onClick={downloadCode}
@@ -202,14 +245,47 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
         </TabsList>
 
         <div className="flex-1 p-4">
-          {/* Keep iframe always mounted to preserve chart state */}
+          {/* Preview content - prefer sandbox over iframe */}
           <div className={`h-full rounded-lg overflow-hidden border border-border/50 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
-            <iframe
-              ref={iframeRef}
-              className="w-full h-full"
-              sandbox="allow-scripts allow-same-origin"
-              title="Data Visualization Preview"
-            />
+            {generatedCode?.sandboxId ? (
+              <div className="w-full h-full">
+                {sandboxLoading ? (
+                  <div className="w-full h-full flex items-center justify-center bg-background">
+                    <div className="text-center space-y-4">
+                      <div className="w-8 h-8 mx-auto rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
+                        <ExternalLink className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">Loading sandbox visualization...</p>
+                    </div>
+                  </div>
+                ) : sandboxError ? (
+                  <div className="w-full h-full flex items-center justify-center bg-background">
+                    <div className="text-center space-y-4">
+                      <AlertCircle className="w-8 h-8 mx-auto text-destructive" />
+                      <div>
+                        <p className="text-sm font-medium text-destructive">Sandbox Error</p>
+                        <p className="text-xs text-muted-foreground">{sandboxError}</p>
+                        <p className="text-xs text-muted-foreground mt-2">Falling back to iframe...</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : sandboxResponse ? (
+                  <iframe
+                    className="w-full h-full"
+                    srcDoc={sandboxResponse}
+                    sandbox="allow-scripts allow-same-origin"
+                    title="Sandbox Visualization Preview"
+                  />
+                ) : null}
+              </div>
+            ) : (
+              <iframe
+                ref={iframeRef}
+                className="w-full h-full"
+                sandbox="allow-scripts allow-same-origin"
+                title="Data Visualization Preview"
+              />
+            )}
           </div>
           
           <TabsContent value="preview" className="h-full mt-0">
@@ -300,8 +376,35 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                     <div className="bg-muted/30 p-2 rounded">
                       <strong>Total Length:</strong> {generatedCode.fullCode.length} chars
                     </div>
+                    {generatedCode.sandboxId && (
+                      <>
+                        <div className="bg-muted/30 p-2 rounded">
+                          <strong>Sandbox ID:</strong> {generatedCode.sandboxId}
+                        </div>
+                        <div className="bg-muted/30 p-2 rounded">
+                          <strong>Sandbox URL:</strong> {generatedCode.sandboxUrl || 'N/A'}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
+
+                {generatedCode.sandboxId && (
+                  <div>
+                    <h4 className="font-medium mb-2">🏖️ Sandbox Info</h4>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        <strong>Rendering Mode:</strong> Deno Sandbox
+                      </div>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        <strong>Security:</strong> Fully isolated execution environment
+                      </div>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        <strong>Status:</strong> {sandboxLoading ? 'Loading...' : sandboxError ? 'Error' : sandboxResponse ? 'Ready' : 'Initializing'}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h4 className="font-medium mb-2">🚨 Common Issues</h4>

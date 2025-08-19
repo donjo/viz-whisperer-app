@@ -22,6 +22,7 @@ In your Deno Deploy project settings, add these environment variables:
 
 **Optional:**
 - `ANTHROPIC_MODEL` = `claude-sonnet-4-20250514` (or your preferred model)
+- `DEPLOY_TOKEN` = `your_deno_deploy_token` (for Deno Sandbox functionality)
 
 ### 4. Deploy
 Deno Deploy will automatically build and deploy your app when you push to your connected branch.
@@ -60,6 +61,16 @@ To test the production setup on your local machine:
 - ✅ Rate limiting possible (add to main.ts if needed)
 - ✅ User authentication possible (add to main.ts if needed)
 - ✅ Generated code validation possible (already implemented)
+- ✅ Deno Sandbox isolation for generated code (when DEPLOY_TOKEN is configured)
+
+## Deno Sandbox Features
+
+When `DEPLOY_TOKEN` is configured, visualizations will render in fully isolated Deno sandboxes instead of iframes:
+
+- **Enhanced Security**: Complete process isolation rather than browser sandbox
+- **Better Performance**: Native HTTP server environment for complex visualizations  
+- **Real Environment**: Closer to production deployment conditions
+- **Automatic Fallback**: Falls back to iframe rendering if sandbox creation fails
 
 ## Cost Management
 
@@ -74,7 +85,9 @@ With the backend approach, you can now add:
 **For Deno Deploy:**
 - `ANTHROPIC_API_KEY` - Your Anthropic API key (stored securely)
 - `ANTHROPIC_MODEL` - Model to use (optional, defaults to claude-sonnet-4-20250514)
+- `DEPLOY_TOKEN` - Deno Deploy token for sandbox functionality (optional, enables enhanced isolation)
 
 **For Local Development:**
 - `VITE_ANTHROPIC_API_KEY` - Your Anthropic API key (in .env.local)
 - `VITE_ANTHROPIC_MODEL` - Model to use (optional)
+- `DEPLOY_TOKEN` - Deno Deploy token for sandbox functionality (optional, for testing sandbox features locally)

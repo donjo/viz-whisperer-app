@@ -1,4 +1,6 @@
+/// <reference lib="deno.ns" />
 import Anthropic from "@anthropic-ai/sdk";
+import { sandboxService } from "../src/services/sandboxService.ts";
 
 interface VisualizationRequest {
   apiData: {
@@ -26,6 +28,8 @@ interface GeneratedCode {
   css: string;
   javascript: string;
   fullCode: string;
+  sandboxId?: string;
+  sandboxUrl?: string;
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -86,10 +90,30 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
     if (content.type === 'text') {
       const parsed = parseResponse(content.text);
       const validated = validateAndFixCode(parsed, requestData);
+      
+      // Create the result with traditional fullCode for backwards compatibility
       const result: GeneratedCode = {
         ...validated,
         fullCode: combineCode(validated.html, validated.css, validated.javascript),
       };
+      
+      // Try to create a sandbox for the visualization
+      try {
+        const sandbox = await sandboxService.createVisualization({
+          html: validated.html,
+          css: validated.css,
+          javascript: validated.javascript
+        });
+        
+        result.sandboxId = sandbox.id;
+        result.sandboxUrl = sandbox.url;
+        
+        console.log(`Created sandbox ${sandbox.id} for visualization`);
+      } catch (sandboxError) {
+        console.warn('Failed to create sandbox, falling back to iframe:', sandboxError);
+        // Don't fail the entire request if sandbox creation fails
+        // The client can still use iframe rendering as fallback
+      }
       
       return Response.json(result);
     }
