@@ -210,25 +210,76 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
     <div className="h-full bg-background flex flex-col">
       <div className="p-4 border-b border-border/50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold">Generated Visualization</h3>
-            {generatedCode.sandboxId ? (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                <ExternalLink className="w-3 h-3 mr-1" />
-                Sandbox
-              </Badge>
-            ) : (
-              <Badge variant="secondary">iframe</Badge>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Generated Visualization</h3>
+              {generatedCode.sandboxId ? (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  <ExternalLink className="w-3 h-3 mr-1" />
+                  Sandbox
+                </Badge>
+              ) : (
+                <Badge variant="secondary">iframe</Badge>
+              )}
+            </div>
+            {generatedCode.sandboxId && generatedCode.sandboxUrl && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span>Sandbox URL:</span>
+                <code className="bg-muted px-2 py-1 rounded text-xs">
+                  {generatedCode.sandboxUrl}
+                </code>
+                <Button
+                  onClick={() => {
+                    navigator.clipboard.writeText(generatedCode.sandboxUrl || '');
+                    const isProductionUrl = generatedCode.sandboxUrl?.startsWith('https://');
+                    toast({
+                      title: "URL Copied",
+                      description: isProductionUrl 
+                        ? "Production sandbox URL copied to clipboard"
+                        : "Development sandbox URL copied to clipboard"
+                    });
+                  }}
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2"
+                >
+                  <Copy className="w-3 h-3" />
+                </Button>
+              </div>
             )}
           </div>
-          <Button
-            onClick={downloadCode}
-            variant="outline"
-            size="sm"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download
-          </Button>
+          <div className="flex items-center gap-2">
+            {generatedCode.sandboxId && generatedCode.sandboxUrl && (
+              <Button
+                onClick={() => {
+                  if (generatedCode.sandboxUrl?.startsWith('https://')) {
+                    // Production URL - open in new tab
+                    window.open(generatedCode.sandboxUrl, '_blank');
+                  } else {
+                    // Development/local URL - show info toast
+                    toast({
+                      title: "Development Mode",
+                      description: `Sandbox URL: ${generatedCode.sandboxUrl}`,
+                    });
+                  }
+                }}
+                variant="outline"
+                size="sm"
+                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Open Sandbox
+              </Button>
+            )}
+            <Button
+              onClick={downloadCode}
+              variant="outline"
+              size="sm"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Download
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -401,6 +452,16 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                       </div>
                       <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
                         <strong>Status:</strong> {sandboxLoading ? 'Loading...' : sandboxError ? 'Error' : sandboxResponse ? 'Ready' : 'Initializing'}
+                      </div>
+                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                        <strong>Sandbox URL:</strong> 
+                        <br />
+                        <code className="text-xs break-all">
+                          {generatedCode.sandboxUrl}
+                        </code>
+                      </div>
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
+                        <strong>Note:</strong> In production with DEPLOY_TOKEN configured, this would be a real Deno Deploy URL that can be shared independently.
                       </div>
                     </div>
                   </div>

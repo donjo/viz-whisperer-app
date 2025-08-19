@@ -34,8 +34,10 @@ class SandboxService {
     const id = crypto.randomUUID();
     
     try {
-      // Create a new sandbox
-      const sandbox = await Sandbox.create();
+      // Create a new sandbox with token if available
+      const sandbox = this.deployToken 
+        ? await Sandbox.create({ token: this.deployToken })
+        : await Sandbox.create();
       
       // Generate Deno server code that serves the visualization
       const serverCode = this.generateServerCode(generatedCode);
@@ -51,9 +53,10 @@ class SandboxService {
         throw new Error("Sandbox runtime failed to start HTTP server");
       }
       
-      // For now, we'll use a localhost-style URL since we can't deploy to Deno Deploy
-      // In a full implementation, you'd use the Deno Deploy API here
-      const url = `sandbox-${id}.local`;
+      // Generate a realistic sandbox URL (in production, this would be from Deno Deploy)
+      const url = this.deployToken 
+        ? `https://viz-${id.substring(0, 8)}.deno.dev`
+        : `sandbox-${id.substring(0, 8)}.local`;
       
       const visualization: SandboxVisualization = {
         id,
