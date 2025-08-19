@@ -32,6 +32,7 @@
   },
   "imports": {
     "@/": "./src/",
+    "@deno/sandbox": "jsr:@deno/sandbox@^0.0.3",
     "@std/http": "jsr:@std/http@^1.0.0"
   }
 }
