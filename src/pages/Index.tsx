@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ApiInput } from '@/components/ApiInput';
 import { PreviewWindow } from '@/components/PreviewWindow';
+import { VisualizationChat } from '@/components/VisualizationChat';
 import { CodeGenerator } from '@/utils/CodeGenerator';
 import { Badge } from '@/components/ui/badge';
-import { Database, Sparkles } from 'lucide-react';
+import { Database, Sparkles, AlertCircle } from 'lucide-react';
+import { anthropicService } from '@/services/anthropicService';
 interface ApiData {
   url: string;
   data: any;
@@ -26,33 +28,31 @@ const Index = () => {
   const [apiData, setApiData] = useState<ApiData | null>(null);
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isChatProcessing, setIsChatProcessing] = useState(false);
+  const [isAIConfigured, setIsAIConfigured] = useState(false);
+  
+  useEffect(() => {
+    setIsAIConfigured(anthropicService.isConfigured());
+  }, []);
   const handleDataFetched = (data: ApiData) => {
     setApiData(data);
-    setGeneratedCode(null); // Clear previous visualization
+    setGeneratedCode(null);
   };
-  const handleVisualizationRequest = async (prompt: string) => {
+  
+  const handleVisualizationRequest = async (prompt: string, isInitial: boolean) => {
     if (!apiData) return;
     setIsGenerating(true);
     try {
-      const code = await CodeGenerator.generateVisualization(apiData, prompt);
+      let code;
+      if (isInitial || !generatedCode) {
+        code = await CodeGenerator.generateVisualization(apiData, prompt);
+      } else {
+        code = await CodeGenerator.iterateVisualization(generatedCode, prompt, apiData);
+      }
       setGeneratedCode(code);
     } catch (error) {
       console.error('Failed to generate visualization:', error);
     } finally {
       setIsGenerating(false);
-    }
-  };
-  const handleChatMessage = async (message: string) => {
-    if (!apiData || !generatedCode) return;
-    setIsChatProcessing(true);
-    try {
-      const updatedCode = await CodeGenerator.iterateVisualization(generatedCode, message, apiData);
-      setGeneratedCode(updatedCode);
-    } catch (error) {
-      console.error('Failed to iterate visualization:', error);
-    } finally {
-      setIsChatProcessing(false);
     }
   };
   return <div className="min-h-screen bg-background">
@@ -70,10 +70,17 @@ const Index = () => {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="hidden sm:flex">
-                <Sparkles className="w-3 h-3 mr-1" />
-                AI-Powered
-              </Badge>
+              {isAIConfigured ? (
+                <Badge variant="outline" className="hidden sm:flex">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  AI-Powered (Live)
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="hidden sm:flex">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  Demo Mode
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -81,14 +88,24 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-6 py-6">
-        <div className="grid lg:grid-cols-2 gap-6 h-[calc(100vh-200px)]">
-          {/* Left Panel - Input */}
-          <div>
-            <ApiInput onDataFetched={handleDataFetched} onVisualizationRequest={handleVisualizationRequest} isGenerating={isGenerating} />
+        <div className="grid xl:grid-cols-3 lg:grid-cols-2 gap-6 h-[calc(100vh-180px)]">
+          {/* Left Panel - Data Input */}
+          <div className="lg:col-span-1">
+            <ApiInput onDataFetched={handleDataFetched} />
+          </div>
+
+          {/* Middle Panel - Visualization Chat */}
+          <div className="lg:col-span-1 xl:col-span-1">
+            <VisualizationChat 
+              hasData={!!apiData}
+              onVisualizationRequest={handleVisualizationRequest}
+              isGenerating={isGenerating}
+              generatedCode={generatedCode}
+            />
           </div>
 
           {/* Right Panel - Preview */}
-          <div className="h-full">
+          <div className="lg:col-span-2 xl:col-span-1">
             <PreviewWindow generatedCode={generatedCode} isLoading={isGenerating} />
           </div>
         </div>

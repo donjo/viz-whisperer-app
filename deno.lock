@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@anthropic-ai/sdk@0.60": "0.60.0",
     "npm:@eslint/js@^9.32.0": "9.33.0",
     "npm:@hookform/resolvers@^3.10.0": "3.10.0_react-hook-form@7.62.0__react@18.3.1_react@18.3.1",
     "npm:@radix-ui/react-accordion@^1.2.11": "1.2.12_@types+react@18.3.23_@types+react-dom@18.3.7__@types+react@18.3.23_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -72,6 +73,10 @@
   "npm": {
     "@alloc/quick-lru@5.2.0": {
       "integrity": "sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw=="
+    },
+    "@anthropic-ai/sdk@0.60.0": {
+      "integrity": "sha512-9zu/TXaUy8BZhXedDtt1wT3H4LOlpKDO1/ftiFpeR3N1PCr3KJFKkxxlQWWt1NNp08xSwUNJ3JNY8yhl8av6eQ==",
+      "bin": true
     },
     "@babel/runtime@7.28.3": {
       "integrity": "sha512-9uIQ10o0WGdpP6GDhXcdOJPJuDgFtIDtN/9+ArJQ2NAfAmiuhTQdzkaTGR33v43GYS2UrSA0eX2pPPHoFVvpxA=="
@@ -3129,6 +3134,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@anthropic-ai/sdk@0.60",
         "npm:@eslint/js@^9.32.0",
         "npm:@hookform/resolvers@^3.10.0",
         "npm:@radix-ui/react-accordion@^1.2.11",

@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface ApiData {
   url: string;
@@ -23,19 +22,16 @@ interface ApiData {
 
 interface ApiInputProps {
   onDataFetched: (data: ApiData) => void;
-  onVisualizationRequest: (prompt: string) => void;
-  isGenerating: boolean;
 }
 
 export const ApiInput = (
-  { onDataFetched, onVisualizationRequest, isGenerating }: ApiInputProps,
+  { onDataFetched }: ApiInputProps,
 ) => {
   const [apiUrl, setApiUrl] = useState(
     "https://api.github.com/repos/denoland/deno/contributors",
   );
   const [isLoading, setIsLoading] = useState(false);
   const [currentData, setCurrentData] = useState<ApiData | null>(null);
-  const [visualizationPrompt, setVisualizationPrompt] = useState("");
   const { toast } = useToast();
 
   const fetchApiData = async () => {
@@ -119,18 +115,6 @@ export const ApiInput = (
     }
   };
 
-  const handleVisualizationRequest = () => {
-    if (!visualizationPrompt.trim()) {
-      toast({
-        title: "Description Required",
-        description: "Please describe how you want to visualize the data",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    onVisualizationRequest(visualizationPrompt);
-  };
 
   return (
     <div className="space-y-6">
@@ -211,47 +195,6 @@ export const ApiInput = (
         </Card>
       )}
 
-      {/* Visualization Prompt */}
-      {currentData && (
-        <Card className="panel-glass p-6">
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold">Visualization Prompt</h3>
-              <p className="text-muted-foreground text-sm">
-                Describe how you want to visualize this data
-              </p>
-            </div>
-
-            <Textarea
-              placeholder="Create a bar chart showing the distribution of categories, with colors based on values..."
-              value={visualizationPrompt}
-              onChange={(e) => setVisualizationPrompt(e.target.value)}
-              className="min-h-24"
-            />
-
-            <Button
-              onClick={handleVisualizationRequest}
-              disabled={isGenerating}
-              variant="secondary"
-              className="w-full"
-            >
-              {isGenerating
-                ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Generating Visualization...
-                  </>
-                )
-                : (
-                  <>
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    Generate Visualization
-                  </>
-                )}
-            </Button>
-          </div>
-        </Card>
-      )}
     </div>
   );
 };

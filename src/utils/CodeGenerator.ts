@@ -1,5 +1,4 @@
-// Mock code generation service
-// In a real implementation, this would integrate with OpenAI, Claude, or another AI service
+import { anthropicService } from '@/services/anthropicService';
 
 interface ApiData {
   url: string;
@@ -26,7 +25,20 @@ export class CodeGenerator {
     apiData: ApiData,
     prompt: string
   ): Promise<GeneratedCode> {
-    // Simulate API delay
+    // Try to use real AI service if configured
+    if (anthropicService.isConfigured()) {
+      try {
+        return await anthropicService.generateVisualization({
+          apiData,
+          prompt,
+        });
+      } catch (error) {
+        console.error('AI generation failed, falling back to mock:', error);
+        // Fall through to mock implementation
+      }
+    }
+    
+    // Fallback to mock implementation
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     // Extract sample data for visualization
@@ -48,7 +60,25 @@ export class CodeGenerator {
     iterationPrompt: string,
     apiData: ApiData
   ): Promise<GeneratedCode> {
-    // Simulate iteration delay
+    // Try to use real AI service if configured
+    if (anthropicService.isConfigured()) {
+      try {
+        return await anthropicService.generateVisualization({
+          apiData,
+          prompt: iterationPrompt,
+          currentCode: {
+            html: currentCode.html,
+            css: currentCode.css,
+            javascript: currentCode.javascript
+          }
+        });
+      } catch (error) {
+        console.error('AI iteration failed, falling back to mock:', error);
+        // Fall through to mock implementation
+      }
+    }
+    
+    // Fallback to mock implementation
     await new Promise(resolve => setTimeout(resolve, 1500));
 
     // In a real implementation, this would send the current code + iteration request to AI
