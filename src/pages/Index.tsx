@@ -24,6 +24,9 @@ interface GeneratedCode {
   css: string;
   javascript: string;
   fullCode: string;
+  sandboxId?: string;
+  sandboxUrl?: string;
+  visualizationId?: string;
 }
 const Index = () => {
   const [apiData, setApiData] = useState<ApiData | null>(null);

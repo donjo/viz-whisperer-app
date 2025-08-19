@@ -28,6 +28,7 @@ interface GeneratedCode {
   fullCode: string;
   sandboxId?: string;
   sandboxUrl?: string;
+  visualizationId?: string;
 }
 
 class AnthropicService {
@@ -35,19 +36,10 @@ class AnthropicService {
   private useBackendAPI: boolean = false;
 
   constructor() {
-    // Check if we're in development and have a frontend API key
-    const apiKey = (import.meta as any).env?.VITE_ANTHROPIC_API_KEY;
-    const isDev = (import.meta as any).env?.DEV;
-
-    if (isDev && apiKey && apiKey !== "your_api_key_here") {
-      this.client = new Anthropic({
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true,
-      });
-    } else {
-      // In production, use backend API
-      this.useBackendAPI = true;
-    }
+    // Always use backend API for sandbox deployment and visualization tracking
+    // The backend API includes deployment logging, sandbox creation, and monitoring
+    this.useBackendAPI = true;
+    console.log('🔧 AnthropicService: Using backend API for full deployment pipeline');
   }
 
   isConfigured(): boolean {

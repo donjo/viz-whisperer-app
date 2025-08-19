@@ -181,6 +181,39 @@ export const VisualizationChat = ({
                 <div>• "Line graph with animations"</div>
                 <div>• "Dashboard with charts"</div>
               </div>
+              <div className="mt-3 pt-2 border-t border-muted-foreground/10">
+                <Button
+                  onClick={async () => {
+                    try {
+                      const response = await fetch('/api/debug-frontend', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'test-response' })
+                      });
+                      const result = await response.json();
+                      console.log('🧪 Debug test result:', result);
+                      toast({
+                        title: "Debug Test",
+                        description: `Generated test visualization with ID: ${result.visualizationId?.slice(-8)}. Check console for details.`,
+                      });
+                      // Trigger the visualization flow with debug data
+                      onVisualizationRequest("Debug test visualization", true);
+                    } catch (error) {
+                      console.error('Debug test failed:', error);
+                      toast({
+                        title: "Debug Test Failed",
+                        description: "Check console for error details",
+                        variant: "destructive",
+                      });
+                    }
+                  }}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7"
+                >
+                  🧪 Test Debug Endpoint
+                </Button>
+              </div>
             </div>
           )}
 

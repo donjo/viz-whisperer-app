@@ -20,6 +20,7 @@ interface GeneratedCode {
   fullCode: string;
   sandboxId?: string;
   sandboxUrl?: string;
+  visualizationId?: string;
 }
 
 export class CodeGenerator {

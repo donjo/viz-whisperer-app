@@ -13,6 +13,25 @@ interface GeneratedCode {
   fullCode: string;
   sandboxId?: string;
   sandboxUrl?: string;
+  visualizationId?: string;
+}
+
+interface DeploymentStatus {
+  visualizationId: string;
+  status: 'pending' | 'deploying' | 'verifying' | 'ready' | 'failed';
+  startTime: string;
+  endTime?: string;
+  sandboxId?: string;
+  sandboxUrl?: string;
+  error?: string;
+  events: Array<{
+    id: string;
+    timestamp: string;
+    stage: string;
+    message: string;
+    details?: any;
+    error?: string;
+  }>;
 }
 
 interface PreviewWindowProps {
@@ -23,105 +42,64 @@ interface PreviewWindowProps {
 }
 
 export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: PreviewWindowProps) => {
+  console.log('🔍 PreviewWindow received:', {
+    hasVisualizationId: !!generatedCode?.visualizationId,
+    visualizationId: generatedCode?.visualizationId,
+    generatedCode: generatedCode
+  });
+  
   const [activeTab, setActiveTab] = useState("preview");
-  const [sandboxResponse, setSandboxResponse] = useState<string>("");
-  const [sandboxLoading, setSandboxLoading] = useState(false);
-  const [sandboxError, setSandboxError] = useState<string | null>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [deploymentStatus, setDeploymentStatus] = useState<DeploymentStatus | null>(null);
+  const [deploymentError, setDeploymentError] = useState<string | null>(null);
   const { toast } = useToast();
   
-  // Load sandbox content from API
-  const loadSandboxContent = async () => {
-    if (!generatedCode?.sandboxId) return;
+  // Monitor deployment status
+  const monitorDeployment = async (visualizationId: string) => {
+    const maxChecks = 30; // 30 checks = ~2 minutes max
+    const checkInterval = 4000; // 4 seconds
     
-    setSandboxLoading(true);
-    setSandboxError(null);
-    
-    try {
-      // Make API call to get sandbox content
-      const response = await fetch(`/api/sandbox-content?id=${generatedCode.sandboxId}`);
-      
-      if (!response.ok) {
-        throw new Error(`Sandbox API returned ${response.status}: ${response.statusText}`);
-      }
-      
-      const html = await response.text();
-      setSandboxResponse(html);
-      console.log("Successfully loaded content from sandbox:", generatedCode.sandboxId);
-    } catch (error) {
-      console.error("Failed to load sandbox content:", error);
-      setSandboxError(error instanceof Error ? error.message : "Failed to load sandbox");
-    } finally {
-      setSandboxLoading(false);
-    }
-  };
-
-  const loadIframeContent = () => {
-    if (!generatedCode || !iframeRef.current) return;
-    
-    console.log("Loading visualization into iframe...", {
-      hasHtml: !!generatedCode.html,
-      hasCss: !!generatedCode.css,
-      hasJs: !!generatedCode.javascript,
-      fullCodeLength: generatedCode.fullCode.length,
-    });
-
-    const iframe = iframeRef.current;
-    
-    try {
-      console.log("Using data URL method to load iframe content...");
-      const dataUrl = `data:text/html;charset=utf-8,${
-        encodeURIComponent(generatedCode.fullCode)
-      }`;
-      
-      // Clean up any existing event listeners
-      iframe.onload = null;
-      iframe.onerror = null;
-      
-      // Set up event-driven loading
-      iframe.onload = () => {
-        console.log("Iframe loaded successfully via data URL");
+    for (let check = 1; check <= maxChecks; check++) {
+      try {
+        const response = await fetch(`/api/deployment-status?id=${visualizationId}`);
         
-        try {
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (iframeDoc && iframeDoc.body) {
-            const canvases = iframeDoc.body.querySelectorAll("canvas");
-            const scripts = iframeDoc.body.querySelectorAll("script");
-            console.log(`Content check: ${canvases.length} canvas(es), ${scripts.length} script(s)`);
-            
-            if (canvases.length === 0) {
-              console.warn("No canvas elements found in iframe");
-            } else {
-              console.log("Canvas elements detected - chart should be rendering");
-            }
-          }
-        } catch (checkError) {
-          console.error("Error checking iframe content:", checkError);
+        if (!response.ok) {
+          throw new Error(`Status API returned ${response.status}: ${response.statusText}`);
         }
-      };
-      
-      iframe.onerror = (e) => {
-        console.error("Iframe loading error:", e);
-      };
-      
-      // Load the content
-      iframe.src = dataUrl;
-      
-    } catch (error) {
-      console.error("Failed to load iframe with data URL:", error);
+        
+        const status: DeploymentStatus = await response.json();
+        setDeploymentStatus(status);
+        
+        console.log(`🔍 Deployment check ${check}/${maxChecks}:`, status.status, status.events[status.events.length - 1]?.message);
+        
+        // Stop monitoring if deployment is complete
+        if (status.status === 'ready' || status.status === 'failed') {
+          if (status.status === 'failed') {
+            setDeploymentError(status.error || 'Deployment failed');
+          }
+          break;
+        }
+        
+        // Wait before next check (unless it's the last check)
+        if (check < maxChecks) {
+          await new Promise(resolve => setTimeout(resolve, checkInterval));
+        }
+        
+      } catch (error) {
+        console.error(`Error checking deployment status (attempt ${check}):`, error);
+        setDeploymentError(error instanceof Error ? error.message : "Failed to check deployment status");
+        break;
+      }
     }
   };
 
   useEffect(() => {
-    if (generatedCode) {
-      // Prefer sandbox rendering if available, fallback to iframe
-      if (generatedCode.sandboxId) {
-        loadSandboxContent();
-      } else {
-        loadIframeContent();
-      }
+    if (generatedCode?.visualizationId) {
+      // Start monitoring deployment status
+      setDeploymentStatus(null);
+      setDeploymentError(null);
+      monitorDeployment(generatedCode.visualizationId);
     }
-  }, [generatedCode]);
+  }, [generatedCode?.visualizationId]);
 
   const downloadCode = () => {
     if (!generatedCode) return;
@@ -213,14 +191,10 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold">Generated Visualization</h3>
-              {generatedCode.sandboxId ? (
-                <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                  <ExternalLink className="w-3 h-3 mr-1" />
-                  Sandbox
-                </Badge>
-              ) : (
-                <Badge variant="secondary">iframe</Badge>
-              )}
+              <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                <ExternalLink className="w-3 h-3 mr-1" />
+                Sandbox Deploy
+              </Badge>
             </div>
             {generatedCode.sandboxId && generatedCode.sandboxUrl && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -302,46 +276,54 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
         </TabsList>
 
         <div className="flex-1 p-4">
-          {/* Preview content - prefer sandbox over iframe */}
+          {/* Preview content - load directly from sandbox deployment */}
           <div className={`h-full rounded-lg overflow-hidden border border-border/50 ${activeTab === 'preview' ? 'block' : 'hidden'}`}>
-            {generatedCode?.sandboxId ? (
-              <div className="w-full h-full">
-                {sandboxLoading ? (
-                  <div className="w-full h-full flex items-center justify-center bg-background">
-                    <div className="text-center space-y-4">
-                      <div className="w-8 h-8 mx-auto rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
-                        <ExternalLink className="w-4 h-4 text-primary" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">Loading sandbox visualization...</p>
-                    </div>
+            {deploymentError || deploymentStatus?.status === 'failed' ? (
+              <div className="w-full h-full flex items-center justify-center bg-background">
+                <div className="text-center space-y-4">
+                  <AlertCircle className="w-8 h-8 mx-auto text-destructive" />
+                  <div>
+                    <p className="text-sm font-medium text-destructive">Deployment Failed</p>
+                    <p className="text-xs text-muted-foreground">{deploymentError || deploymentStatus?.error}</p>
+                    <p className="text-xs text-muted-foreground mt-2">Visualization must be deployed to sandbox to view</p>
+                    {onRetry && (
+                      <Button onClick={onRetry} variant="outline" size="sm" className="mt-4">
+                        <Play className="w-4 h-4 mr-2" />
+                        Try Again
+                      </Button>
+                    )}
                   </div>
-                ) : sandboxError ? (
-                  <div className="w-full h-full flex items-center justify-center bg-background">
-                    <div className="text-center space-y-4">
-                      <AlertCircle className="w-8 h-8 mx-auto text-destructive" />
-                      <div>
-                        <p className="text-sm font-medium text-destructive">Sandbox Error</p>
-                        <p className="text-xs text-muted-foreground">{sandboxError}</p>
-                        <p className="text-xs text-muted-foreground mt-2">Falling back to iframe...</p>
-                      </div>
-                    </div>
-                  </div>
-                ) : sandboxResponse ? (
-                  <iframe
-                    className="w-full h-full"
-                    srcDoc={sandboxResponse}
-                    sandbox="allow-scripts allow-same-origin"
-                    title="Sandbox Visualization Preview"
-                  />
-                ) : null}
+                </div>
               </div>
-            ) : (
+            ) : deploymentStatus?.status === 'ready' && deploymentStatus?.sandboxUrl ? (
               <iframe
-                ref={iframeRef}
                 className="w-full h-full"
+                src={deploymentStatus.sandboxUrl}
                 sandbox="allow-scripts allow-same-origin"
-                title="Data Visualization Preview"
+                title="Sandbox Deployed Visualization"
               />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-background">
+                <div className="text-center space-y-4">
+                  <div className="w-8 h-8 mx-auto rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
+                    <ExternalLink className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold">
+                      {!deploymentStatus ? 'Starting deployment...' :
+                       deploymentStatus.status === 'pending' ? 'Generation complete, awaiting sandbox deployment' :
+                       deploymentStatus.status === 'deploying' ? 'Deploying to sandbox...' :
+                       deploymentStatus.status === 'verifying' ? 'Verifying deployment...' :
+                       'Finalizing deployment...'}
+                    </p>
+                    {deploymentStatus?.events?.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {deploymentStatus.events[deploymentStatus.events.length - 1]?.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
             )}
           </div>
           
@@ -433,53 +415,69 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                     <div className="bg-muted/30 p-2 rounded">
                       <strong>Total Length:</strong> {generatedCode.fullCode.length} chars
                     </div>
-                    {generatedCode.sandboxId && (
-                      <>
-                        <div className="bg-muted/30 p-2 rounded">
-                          <strong>Sandbox ID:</strong> {generatedCode.sandboxId}
+                    <div className="bg-muted/30 p-2 rounded">
+                      <strong>Sandbox ID:</strong> {generatedCode.sandboxId || 'N/A'}
+                    </div>
+                    <div className="bg-muted/30 p-2 rounded">
+                      <strong>Sandbox URL:</strong> {generatedCode.sandboxUrl || 'N/A'}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">🏖️ Sandbox Deployment</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                      <strong>Rendering Mode:</strong> Deno Deploy Sandbox (Required)
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                      <strong>Security:</strong> Fully isolated execution environment
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                      <strong>Status:</strong> {
+                        deploymentError || deploymentStatus?.status === 'failed' ? '❌ Failed' :
+                        deploymentStatus?.status === 'ready' ? '✅ Ready' :
+                        deploymentStatus?.status === 'verifying' ? '🔍 Verifying' :
+                        deploymentStatus?.status === 'deploying' ? '🚀 Deploying' :
+                        deploymentStatus?.status === 'pending' ? '⏳ Pending' :
+                        '🔄 Initializing'
+                      }
+                    </div>
+                    <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                      <strong>Sandbox URL:</strong> 
+                      <br />
+                      <code className="text-xs break-all">
+                        {deploymentStatus?.sandboxUrl || generatedCode.sandboxUrl || 'Not available'}
+                      </code>
+                    </div>
+                    <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                      <strong>Deployment:</strong> All visualizations are deployed to live Deno Deploy sandboxes. No local rendering.
+                    </div>
+                    {deploymentStatus?.events && deploymentStatus.events.length > 0 && (
+                      <div className="bg-gray-50 dark:bg-gray-900/20 p-2 rounded">
+                        <strong>Recent Events:</strong>
+                        <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
+                          {deploymentStatus.events.slice(-5).map((event) => (
+                            <div key={event.id} className="text-xs">
+                              <span className="font-mono text-muted-foreground">
+                                {new Date(event.timestamp).toLocaleTimeString()}
+                              </span>
+                              <span className="ml-2">{event.message}</span>
+                            </div>
+                          ))}
                         </div>
-                        <div className="bg-muted/30 p-2 rounded">
-                          <strong>Sandbox URL:</strong> {generatedCode.sandboxUrl || 'N/A'}
-                        </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                {generatedCode.sandboxId && (
-                  <div>
-                    <h4 className="font-medium mb-2">🏖️ Sandbox Info</h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                        <strong>Rendering Mode:</strong> Deno Sandbox
-                      </div>
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                        <strong>Security:</strong> Fully isolated execution environment
-                      </div>
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                        <strong>Status:</strong> {sandboxLoading ? 'Loading...' : sandboxError ? 'Error' : sandboxResponse ? 'Ready' : 'Initializing'}
-                      </div>
-                      <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                        <strong>Sandbox URL:</strong> 
-                        <br />
-                        <code className="text-xs break-all">
-                          {generatedCode.sandboxUrl}
-                        </code>
-                      </div>
-                      <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
-                        <strong>Note:</strong> Visualization is running in a real Deno Deploy sandbox. The URL is generated but may not be publicly accessible yet (this is a known issue with the sandbox API).
-                      </div>
-                    </div>
-                  </div>
-                )}
-
                 <div>
-                  <h4 className="font-medium mb-2">🚨 Common Issues</h4>
+                  <h4 className="font-medium mb-2">🚨 Troubleshooting</h4>
                   <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>• Check browser console for JavaScript errors</li>
-                    <li>• Verify all HTML tags are properly closed</li>
-                    <li>• Check if data is properly loaded in JavaScript</li>
-                    <li>• Look for CSS conflicts or missing styles</li>
+                    <li>• Ensure DENO_DEPLOY_TOKEN is configured for sandbox deployment</li>
+                    <li>• Check if sandbox URL is accessible and responding</li>
+                    <li>• Verify visualization code generates valid HTML/CSS/JS</li>
+                    <li>• Look for deployment errors in server logs</li>
                   </ul>
                 </div>
               </div>

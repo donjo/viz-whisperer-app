@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import Anthropic from "@anthropic-ai/sdk";
 import { sandboxService } from "../src/services/sandboxService.ts";
+import { deploymentLogger } from "../src/services/deploymentLogger.ts";
 
 interface VisualizationRequest {
   apiData: {
@@ -30,6 +31,7 @@ interface GeneratedCode {
   fullCode: string;
   sandboxId?: string;
   sandboxUrl?: string;
+  visualizationId?: string;
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -47,6 +49,10 @@ export default async function handler(req: Request): Promise<Response> {
     }
 
     const requestData: VisualizationRequest = await req.json();
+    
+    // Start deployment logging
+    const visualizationId = crypto.randomUUID();
+    const deploymentLog = deploymentLogger.startDeployment(visualizationId);
     
     const client = new Anthropic({
       apiKey: apiKey,
@@ -73,6 +79,8 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
 
     const userPrompt = buildUserPrompt(requestData);
 
+    deploymentLogger.logEvent(visualizationId, 'generation', 'Sending request to AI for visualization code');
+
     const response = await client.messages.create({
       model: Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-4-20250514',
       max_tokens: 16000,
@@ -91,29 +99,26 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
       const parsed = parseResponse(content.text);
       const validated = validateAndFixCode(parsed, requestData);
       
+      deploymentLogger.logEvent(visualizationId, 'generation', 'AI generation complete, preparing deployment');
+      
       // Create the result with traditional fullCode for backwards compatibility
       const result: GeneratedCode = {
         ...validated,
         fullCode: combineCode(validated.html, validated.css, validated.javascript),
+        visualizationId, // Add the ID so the client can track deployment
       };
       
-      // Try to create a sandbox for the visualization
-      try {
-        const sandbox = await sandboxService.createVisualization({
-          html: validated.html,
-          css: validated.css,
-          javascript: validated.javascript
-        });
-        
-        result.sandboxId = sandbox.id;
-        result.sandboxUrl = sandbox.url;
-        
-        console.log(`Created sandbox ${sandbox.id} for visualization`);
-      } catch (sandboxError) {
-        console.warn('Failed to create sandbox, falling back to iframe:', sandboxError);
-        // Don't fail the entire request if sandbox creation fails
-        // The client can still use iframe rendering as fallback
-      }
+      // Create a sandbox for the visualization (required)
+      const sandbox = await sandboxService.createVisualization({
+        html: validated.html,
+        css: validated.css,
+        javascript: validated.javascript
+      }, visualizationId);
+      
+      result.sandboxId = sandbox.id;
+      result.sandboxUrl = sandbox.url;
+      
+      console.log(`Created sandbox ${sandbox.id} for visualization at ${sandbox.url}`);
       
       return Response.json(result);
     }
@@ -124,6 +129,18 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
 
   } catch (error) {
     console.error('Error generating visualization:', error);
+    
+    // Try to log the error if we have a visualization ID
+    try {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate visualization';
+      // Note: visualizationId might not be available if error occurred early
+      if (typeof visualizationId !== 'undefined') {
+        deploymentLogger.markFailed(visualizationId, errorMessage, error);
+      }
+    } catch (logError) {
+      console.error('Failed to log deployment error:', logError);
+    }
+    
     return Response.json({
       error: 'Failed to generate visualization'
     }, { status: 500 });

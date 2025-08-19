@@ -1,5 +1,6 @@
 /// <reference lib="deno.ns" />
 import { Sandbox, type JsRuntime } from "@deno/sandbox";
+import { deploymentLogger } from "./deploymentLogger.ts";
 
 interface SandboxVisualization {
   id: string;
@@ -32,16 +33,33 @@ class SandboxService {
   /**
    * Creates a new sandbox and deploys the visualization code as an HTTP server
    */
-  async createVisualization(generatedCode: GeneratedCode): Promise<{ id: string; url: string }> {
+  async createVisualization(generatedCode: GeneratedCode, visualizationId?: string): Promise<{ id: string; url: string }> {
     const id = crypto.randomUUID();
     
     try {
+      // Log deployment start
+      if (visualizationId) {
+        deploymentLogger.logEvent(visualizationId, 'sandbox_creation', 'Starting sandbox creation');
+      }
+
       // Create a new sandbox (token is required for the Sandbox API)
       if (!this.deployToken) {
-        throw new Error("DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://app.deno.com");
+        const error = "DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://app.deno.com";
+        if (visualizationId) {
+          deploymentLogger.markFailed(visualizationId, error);
+        }
+        throw new Error(error);
+      }
+      
+      if (visualizationId) {
+        deploymentLogger.logEvent(visualizationId, 'sandbox_creation', 'Creating Deno Deploy sandbox instance');
       }
       
       const sandbox = await Sandbox.create({ token: this.deployToken });
+      
+      if (visualizationId) {
+        deploymentLogger.logEvent(visualizationId, 'deployment', 'Generating server code and deploying');
+      }
       
       // Generate Deno server code that serves the visualization
       const serverCode = this.generateServerCode(generatedCode);
@@ -51,10 +69,22 @@ class SandboxService {
         code: serverCode
       });
       
+      if (visualizationId) {
+        deploymentLogger.logEvent(visualizationId, 'deployment', 'Waiting for HTTP server to start');
+      }
+      
       // Wait for the HTTP server to be ready
       const isReady = await runtime.httpReady;
       if (!isReady) {
-        throw new Error("Sandbox runtime failed to start HTTP server");
+        const error = "Sandbox runtime failed to start HTTP server";
+        if (visualizationId) {
+          deploymentLogger.markFailed(visualizationId, error, { sandboxId: id });
+        }
+        throw new Error(error);
+      }
+      
+      if (visualizationId) {
+        deploymentLogger.logEvent(visualizationId, 'deployment', 'Exposing HTTP endpoint');
       }
       
       // Get a real public URL by exposing the runtime (not the port)
@@ -70,12 +100,85 @@ class SandboxService {
       
       this.activeSandboxes.set(id, visualization);
       
+      if (visualizationId) {
+        deploymentLogger.setSandboxInfo(visualizationId, id, url);
+        deploymentLogger.logEvent(visualizationId, 'verification', 'Verifying deployment accessibility');
+        
+        // Verify the deployment is accessible
+        try {
+          await this.verifyDeployment(url, visualizationId);
+        } catch (verificationError) {
+          // Log warning but don't fail - sandbox might need more time to be accessible
+          deploymentLogger.logEvent(visualizationId, 'verification', 
+            'Verification failed but proceeding - sandbox may need more time to be accessible', 
+            { error: verificationError instanceof Error ? verificationError.message : 'Unknown error' });
+          deploymentLogger.markReady(visualizationId);
+        }
+      }
+      
       console.log(`Created sandbox visualization ${id} at ${url}`);
       return { id, url };
       
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error("Failed to create sandbox visualization:", error);
-      throw new Error(`Failed to create sandbox: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      if (visualizationId) {
+        deploymentLogger.markFailed(visualizationId, `Sandbox creation failed: ${errorMessage}`, error);
+      }
+      
+      throw new Error(`Failed to create sandbox: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Verify that a deployed sandbox is accessible and responding
+   */
+  private async verifyDeployment(url: string, visualizationId?: string): Promise<void> {
+    const maxRetries = 5; // Increase retries
+    const retryDelay = 3000; // 3 seconds - give sandbox more time
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (visualizationId) {
+          deploymentLogger.logEvent(visualizationId, 'verification', 
+            `Verification attempt ${attempt}/${maxRetries}`, { url });
+        }
+        
+        const response = await fetch(url, { 
+          method: 'GET',
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        });
+        
+        if (response.ok) {
+          const contentLength = response.headers.get('content-length');
+          if (visualizationId) {
+            deploymentLogger.markReady(visualizationId);
+            deploymentLogger.logEvent(visualizationId, 'ready', 
+              'Deployment verified and accessible', 
+              { status: response.status, contentLength });
+          }
+          return;
+        } else {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        if (attempt === maxRetries) {
+          // Final attempt failed
+          throw new Error(`Verification failed after ${maxRetries} attempts: ${errorMessage}`);
+        } else {
+          // Retry after delay
+          if (visualizationId) {
+            deploymentLogger.logEvent(visualizationId, 'verification', 
+              `Verification attempt ${attempt} failed, retrying...`, 
+              { error: errorMessage, nextRetryIn: `${retryDelay}ms` });
+          }
+          await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+      }
     }
   }
 
