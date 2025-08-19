@@ -253,7 +253,13 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
               <Button
                 onClick={() => {
                   if (generatedCode.sandboxUrl?.startsWith('https://')) {
-                    // Production URL - open in new tab
+                    // Try to open the sandbox URL, but warn about potential issues
+                    navigator.clipboard.writeText(generatedCode.sandboxUrl);
+                    toast({
+                      title: "Sandbox URL Copied",
+                      description: "Note: Sandbox URLs may take a moment to become accessible or may be in development mode.",
+                    });
+                    // Still try to open it
                     window.open(generatedCode.sandboxUrl, '_blank');
                   } else {
                     // Development/local URL - show info toast
@@ -461,7 +467,7 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                         </code>
                       </div>
                       <div className="bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded">
-                        <strong>Note:</strong> In production with DEPLOY_TOKEN configured, this would be a real Deno Deploy URL that can be shared independently.
+                        <strong>Note:</strong> Visualization is running in a real Deno Deploy sandbox. The URL is generated but may not be publicly accessible yet (this is a known issue with the sandbox API).
                       </div>
                     </div>
                   </div>

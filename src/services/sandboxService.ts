@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import { Sandbox, type JsRuntime } from "@deno/sandbox";
 
 interface SandboxVisualization {
@@ -19,11 +20,12 @@ class SandboxService {
   private deployToken: string;
 
   constructor() {
-    // Get the deploy token from environment variables
-    // @ts-ignore - Deno global is available in the server environment
-    this.deployToken = (globalThis as any).Deno?.env?.get("DEPLOY_TOKEN") || "";
+    // Get the deploy token from environment variables (required for Sandbox API)
+    this.deployToken = Deno.env.get("DENO_DEPLOY_TOKEN") || "";
     if (!this.deployToken) {
-      console.warn("DEPLOY_TOKEN not configured - sandbox functionality will be limited");
+      console.warn("DENO_DEPLOY_TOKEN not configured - sandbox functionality requires a deploy token from https://app.deno.com");
+    } else {
+      console.log("DENO_DEPLOY_TOKEN configured - sandbox functionality enabled");
     }
   }
 
@@ -34,10 +36,12 @@ class SandboxService {
     const id = crypto.randomUUID();
     
     try {
-      // Create a new sandbox with token if available
-      const sandbox = this.deployToken 
-        ? await Sandbox.create({ token: this.deployToken })
-        : await Sandbox.create();
+      // Create a new sandbox (token is required for the Sandbox API)
+      if (!this.deployToken) {
+        throw new Error("DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://app.deno.com");
+      }
+      
+      const sandbox = await Sandbox.create({ token: this.deployToken });
       
       // Generate Deno server code that serves the visualization
       const serverCode = this.generateServerCode(generatedCode);
@@ -53,10 +57,8 @@ class SandboxService {
         throw new Error("Sandbox runtime failed to start HTTP server");
       }
       
-      // Generate a realistic sandbox URL (in production, this would be from Deno Deploy)
-      const url = this.deployToken 
-        ? `https://viz-${id.substring(0, 8)}.deno.dev`
-        : `sandbox-${id.substring(0, 8)}.local`;
+      // Get a real public URL by exposing the runtime (not the port)
+      const url = await sandbox.exposeHttp(runtime);
       
       const visualization: SandboxVisualization = {
         id,

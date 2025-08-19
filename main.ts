@@ -1,5 +1,7 @@
 import { serveDir } from "@std/http/file-server";
 import generateVisualization from "./api/generate-visualization.ts";
+import sandboxStatus from "./api/sandbox-status.ts";
+import sandboxContent from "./api/sandbox-content.ts";
 
 async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
@@ -7,6 +9,12 @@ async function handler(req: Request): Promise<Response> {
   // Handle API routes
   if (url.pathname === "/api/generate-visualization") {
     return await generateVisualization(req);
+  }
+  if (url.pathname === "/api/sandbox-status") {
+    return await sandboxStatus(req);
+  }
+  if (url.pathname === "/api/sandbox-content") {
+    return await sandboxContent(req);
   }
   
   // Serve static files from the dist directory
@@ -39,4 +47,5 @@ async function handler(req: Request): Promise<Response> {
   }
 }
 
+// Export for Deno Deploy
 export default { fetch: handler };

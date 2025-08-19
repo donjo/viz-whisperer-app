@@ -26,6 +26,8 @@ interface GeneratedCode {
   css: string;
   javascript: string;
   fullCode: string;
+  sandboxId?: string;
+  sandboxUrl?: string;
 }
 
 class AnthropicService {
