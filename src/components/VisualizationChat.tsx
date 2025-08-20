@@ -282,7 +282,8 @@ export const VisualizationChat = ({
           <Textarea
             placeholder={getPlaceholderText()}
             value={currentPrompt}
-            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCurrentPrompt(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+              setCurrentPrompt(e.target.value)}
             onKeyPress={handleKeyPress}
             className="flex-1 resize-none text-sm py-2 px-3"
             disabled={isGenerating}

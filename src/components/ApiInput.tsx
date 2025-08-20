@@ -129,7 +129,8 @@ export const ApiInput = (
               value={apiUrl}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setApiUrl(e.target.value)}
               className="flex-1 font-mono text-sm"
-              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && fetchApiData()}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) =>
+                e.key === "Enter" && fetchApiData()}
             />
             <Button
               onClick={fetchApiData}

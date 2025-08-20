@@ -6,7 +6,11 @@ import { CodeGenerator } from "@/utils/CodeGenerator.ts";
 import { Badge } from "@/components/ui/badge.tsx";
 import { AlertCircle, Database, Sparkles } from "lucide-react";
 import { anthropicService } from "@/services/anthropicService.ts";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable.tsx";
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from "@/components/ui/resizable.tsx";
 interface ApiData {
   url: string;
   data: any;
