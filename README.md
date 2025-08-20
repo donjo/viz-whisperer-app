@@ -1,14 +1,15 @@
 # Viz Whisperer App
 
-A React application built with Vite, TypeScript, and shadcn-ui, powered by Deno 2.
+A data visualization assistant that transforms natural language into interactive charts and visualizations. Built with React, Vite, TypeScript, and shadcn-ui, powered by Deno 2.
 
 ## Prerequisites
 
 - [Deno 2.x](https://docs.deno.com/runtime/getting_started/installation/) installed
+- An Anthropic API key (for AI-powered visualization generation)
 
 ## Getting Started
 
-### Clone and Install
+### Clone and Setup
 
 ```sh
 # Clone the repository
@@ -17,17 +18,21 @@ git clone <YOUR_GIT_URL>
 # Navigate to the project directory
 cd viz-whisperer-app
 
-# Install dependencies (Deno will handle npm packages automatically)
-deno install
+# Create a .env.local file with your API key
+echo "ANTHROPIC_API_KEY=your-api-key-here" > .env.local
+
+# Dependencies are managed in deno.json - no install needed!
 ```
 
 ### Development
 
 ```sh
-# Start the development server
-deno task dev
+# Start both frontend and API servers
+deno task dev:full
 
-# The app will be available at http://localhost:8080
+# Or run them separately:
+deno task dev      # Frontend at http://localhost:8080
+deno task dev:api  # API server at http://localhost:3000
 ```
 
 ### Building
@@ -60,38 +65,39 @@ deno task fmt
 deno task check
 ```
 
-## Why Deno?
-
-This project uses Deno 2, which provides:
-
-- **Native TypeScript support** - No need for separate TypeScript compilation
-- **Built-in tools** - Linting, formatting, and testing without additional dependencies
-- **Simplified configuration** - Removed ESLint and other config files
-- **npm compatibility** - Can still use all npm packages from package.json
-- **Better security** - Deno's permission system (currently using -A flag for development)
-
 ## Technologies
 
-- **Deno 2** - JavaScript/TypeScript runtime
-- **Vite** - Build tool and dev server
+- **Deno 2** - JavaScript/TypeScript runtime with built-in tooling
+- **Vite** - Lightning-fast build tool and dev server
 - **React 18** - UI framework
-- **TypeScript** - Type safety
-- **shadcn-ui** - Component library
+- **TypeScript** - Type safety (native support via Deno)
+- **shadcn-ui** - Modern component library
 - **Tailwind CSS** - Utility-first CSS framework
-- **Supabase** - Backend services
+- **Anthropic Claude** - AI-powered visualization generation
+- **Deno Sandbox** - Secure code execution environment
 
 ## Project Structure
 
 ```
-├── deno.json          # Deno configuration and task definitions
-├── package.json       # npm dependencies (used by Deno)
+├── deno.json          # Deno configuration, dependencies, and tasks
 ├── vite.config.ts     # Vite configuration
 ├── tailwind.config.ts # Tailwind CSS configuration
-├── tsconfig.json      # TypeScript configuration
+├── dev-server.ts      # API server for handling AI requests
+├── start-dev.sh       # Development startup script
+├── api/               # API endpoints
+│   ├── generate-visualization.ts
+│   ├── sandbox-*.ts   # Sandbox-related endpoints
+│   └── deployment-*.ts
 ├── src/
 │   ├── main.tsx       # Application entry point
 │   ├── App.tsx        # Main App component
 │   ├── components/    # React components
+│   │   ├── ChatInterface.tsx
+│   │   ├── PreviewWindow.tsx
+│   │   └── ui/        # shadcn-ui components
+│   ├── services/      # Business logic
+│   │   ├── anthropicService.ts
+│   │   └── sandboxService.ts
 │   ├── pages/         # Page components
 │   ├── hooks/         # Custom React hooks
 │   ├── lib/           # Utility functions
@@ -99,15 +105,20 @@ This project uses Deno 2, which provides:
 └── public/            # Static assets
 ```
 
-## Notes on Deno Setup
+## Key Features
 
-This project was converted from a Node.js/npm setup to Deno 2. The following changes were made:
+- **Natural Language to Visualization**: Describe your data visualization needs in plain English
+- **Live Preview**: See your visualizations render on the web in real-time
+- **Secure Execution**: Code runs in isolated Deno sandbox environment
+- **Multiple Chart Types**: Support for various chart libraries and visualization types
+- **Export Ready**: Generate standalone browser-native HTML/JS code for your visualizations
 
-- Added `deno.json` for Deno configuration and task definitions
-- Updated `vite.config.ts` to use Deno-compatible imports
-- Removed `eslint.config.js` (using Deno's built-in linter instead)
-- Removed `tsconfig.node.json` (not needed with Deno)
-- Kept `package.json` for npm package compatibility
-- Kept `postcss.config.js` and `tailwind.config.ts` as they're still needed
+## Architecture Notes
 
-The application code remains unchanged and all npm packages work seamlessly with Deno's npm compatibility layer.
+This project uses Deno 2 for several advantages:
+
+- **All-in-one tooling**: No separate linter, formatter, or test runner needed
+- **Native TypeScript**: Direct TypeScript execution without compilation step
+- **Secure by default**: Granular permission system for enhanced security
+- **NPM compatibility**: All npm packages work via Deno's compatibility layer
+- **Simplified config**: Single `deno.json` manages dependencies, tasks, and configuration
