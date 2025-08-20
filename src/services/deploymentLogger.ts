@@ -62,7 +62,12 @@ class DeploymentLogger {
   ): void {
     const log = this.logs.get(visualizationId);
     if (!log) {
-      console.warn(`No deployment log found for visualization: ${visualizationId}`);
+      console.warn(`No deployment log found for visualization: ${visualizationId}`, {
+        visualizationId,
+        stage,
+        message,
+        availableLogs: Array.from(this.logs.keys()),
+      });
       return;
     }
 
@@ -265,11 +270,18 @@ class DeploymentLogger {
   private notifyListeners(visualizationId: string, log: DeploymentLog): void {
     const callbacks = this.listeners.get(visualizationId);
     if (callbacks) {
-      callbacks.forEach((callback) => {
+      callbacks.forEach((callback, index) => {
         try {
           callback(log);
         } catch (error) {
-          console.error("Error in deployment listener:", error);
+          const errorMessage = error instanceof Error ? error.message : "Unknown error";
+          console.error("Error in deployment listener:", errorMessage, {
+            visualizationId,
+            listenerIndex: index,
+            callbackCount: callbacks.length,
+            logStatus: log.status,
+            originalError: error,
+          });
         }
       });
     }

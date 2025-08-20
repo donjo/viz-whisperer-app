@@ -196,19 +196,25 @@ class SandboxService {
     }
   }
 
-  private handleCreationError(error: unknown, _sandboxId: string, visualizationId?: string): void {
+  private handleCreationError(error: unknown, sandboxId: string, visualizationId?: string): void {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Failed to create sandbox visualization:", error);
+    console.error("Failed to create sandbox visualization:", errorMessage, {
+      sandboxId,
+      visualizationId,
+      deployTokenConfigured: !!this.deployToken,
+      activeSandboxCount: this.activeSandboxes.size,
+      originalError: error,
+    });
 
     if (visualizationId) {
       deploymentLogger.markFailed(
         visualizationId,
         `Sandbox creation failed: ${errorMessage}`,
-        error,
+        { sandboxId, error },
       );
     }
 
-    throw new Error(`Failed to create sandbox: ${errorMessage}`);
+    throw new Error(`Failed to create sandbox visualization (ID: ${sandboxId}): ${errorMessage}`);
   }
 
   /**
@@ -254,6 +260,12 @@ class SandboxService {
 
         if (attempt === maxRetries) {
           // Final attempt failed
+          console.error("Sandbox verification failed after all attempts:", errorMessage, {
+            url,
+            maxRetries,
+            finalAttempt: attempt,
+            originalError: error,
+          });
           throw new Error(`Verification failed after ${maxRetries} attempts: ${errorMessage}`);
         } else {
           // Retry after delay
@@ -285,10 +297,14 @@ class SandboxService {
       const response = await visualization.runtime.fetch(`https://localhost${path}`);
       return response;
     } catch (error) {
-      console.error(`Failed to fetch from sandbox ${id}:`, error);
-      throw new Error(
-        `Sandbox request failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`Failed to fetch from sandbox ${id}:`, errorMessage, {
+        sandboxId: id,
+        path,
+        sandboxUrl: visualization.url,
+        originalError: error,
+      });
+      throw new Error(`Sandbox request failed (ID: ${id}, path: ${path}): ${errorMessage}`);
     }
   }
 
@@ -315,7 +331,11 @@ class SandboxService {
       this.activeSandboxes.delete(id);
       console.log(`Destroyed sandbox ${id}`);
     } catch (error) {
-      console.error(`Failed to destroy sandbox ${id}:`, error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error(`Failed to destroy sandbox ${id}:`, errorMessage, {
+        sandboxId: id,
+        originalError: error,
+      });
     }
   }
 

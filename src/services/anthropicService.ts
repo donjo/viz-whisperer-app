@@ -85,8 +85,13 @@ class AnthropicService {
         const result: GeneratedCode = await response.json();
         return result;
       } catch (error) {
-        console.error("Backend API error:", error);
-        throw error;
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        console.error("Backend API error:", errorMessage, {
+          url: '/api/generate-visualization',
+          method: 'POST',
+          originalError: error,
+        });
+        throw new Error(`Failed to generate visualization via backend API: ${errorMessage}`);
       }
     }
 
@@ -145,8 +150,13 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
 
       throw new Error("Unexpected response format from AI");
     } catch (error) {
-      console.error("Error generating visualization:", error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("Error generating visualization via direct API:", errorMessage, {
+        model: (import.meta as any).env?.VITE_ANTHROPIC_MODEL || CONFIG.API.DEFAULT_MODEL,
+        maxTokens: CONFIG.API.MAX_TOKENS,
+        originalError: error,
+      });
+      throw new Error(`Failed to generate visualization: ${errorMessage}`);
     }
   }
 
@@ -200,9 +210,14 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
       console.warn("AI response could not be parsed, generating fallback chart");
       return this.generateFallbackChart();
     } catch (error) {
-      console.error("Error parsing AI response:", error, "Response text:", text);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      console.error("Error parsing AI response:", errorMessage, {
+        responseLength: text.length,
+        responsePreview: text.slice(0, 200),
+        originalError: error,
+      });
       throw new Error(
-        "Failed to parse AI response. Please try again with a clearer or different prompt.",
+        `Failed to parse AI response: ${errorMessage}. Please try again with a clearer or different prompt.`,
       );
     }
   }
@@ -392,7 +407,12 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
     try {
       new Function(javascript);
     } catch (syntaxError) {
-      console.warn("JavaScript syntax error detected:", syntaxError);
+      const errorMessage = syntaxError instanceof Error ? syntaxError.message : "Unknown syntax error";
+      console.warn("JavaScript syntax error detected:", errorMessage, {
+        codeLength: javascript.length,
+        codePreview: javascript.slice(0, 100),
+        syntaxError,
+      });
       issues.push("JavaScript syntax error");
     }
   }
