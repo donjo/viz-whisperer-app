@@ -1,5 +1,24 @@
 import Anthropic from "@anthropic-ai/sdk";
 
+// Configuration constants
+const CONFIG = {
+  API: {
+    MAX_TOKENS: 16000,
+    TEMPERATURE: 0.3,
+    DEFAULT_MODEL: "claude-sonnet-4-20250514",
+  },
+  VALIDATION: {
+    MIN_HTML_LENGTH: 50,
+    MIN_CSS_LENGTH: 30,
+    MIN_JS_LENGTH: 100,
+    MIN_JS_LENGTH_FOR_CHART: 300,
+  },
+  DATA_SAMPLING: {
+    MAX_SAMPLE_RECORDS: 10,
+    MAX_RESPONSE_DEBUG_LENGTH: 100,
+  },
+} as const;
+
 interface VisualizationRequest {
   apiData: {
     url: string;
@@ -39,7 +58,7 @@ class AnthropicService {
     // Always use backend API for sandbox deployment and visualization tracking
     // The backend API includes deployment logging, sandbox creation, and monitoring
     this.useBackendAPI = true;
-    console.log('🔧 AnthropicService: Using backend API for full deployment pipeline');
+    console.log("🔧 AnthropicService: Using backend API for full deployment pipeline");
   }
 
   isConfigured(): boolean {
@@ -50,23 +69,23 @@ class AnthropicService {
     // Use backend API in production or when no frontend API key is available
     if (this.useBackendAPI) {
       try {
-        const response = await fetch('/api/generate-visualization', {
-          method: 'POST',
+        const response = await fetch("/api/generate-visualization", {
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
           body: JSON.stringify(request),
         });
 
         if (!response.ok) {
           const error = await response.json();
-          throw new Error(error.error || 'Failed to generate visualization');
+          throw new Error(error.error || "Failed to generate visualization");
         }
 
         const result: GeneratedCode = await response.json();
         return result;
       } catch (error) {
-        console.error('Backend API error:', error);
+        console.error("Backend API error:", error);
         throw error;
       }
     }
@@ -78,7 +97,8 @@ class AnthropicService {
       );
     }
 
-    const systemPrompt = `Generate a simple HTML/CSS/JavaScript chart visualization. Return ONLY valid JSON:
+    const systemPrompt =
+      `Generate a simple HTML/CSS/JavaScript chart visualization. Return ONLY valid JSON:
 
 {
   "html": "<div id='chart'></div>",
@@ -101,9 +121,9 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
 
     try {
       const response = await this.client.messages.create({
-        model: (import.meta as any).env?.VITE_ANTHROPIC_MODEL || "claude-sonnet-4-20250514",
-        max_tokens: 16000,
-        temperature: 0.3,
+        model: (import.meta as any).env?.VITE_ANTHROPIC_MODEL || CONFIG.API.DEFAULT_MODEL,
+        max_tokens: CONFIG.API.MAX_TOKENS,
+        temperature: CONFIG.API.TEMPERATURE,
         system: systemPrompt,
         messages: [
           {
@@ -145,8 +165,8 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
       ).join("\n")
     }
     
-    Sample Data (first 10 records):
-    ${JSON.stringify(apiData.data.slice(0, 10), null, 2)}
+    Sample Data (first ${CONFIG.DATA_SAMPLING.MAX_SAMPLE_RECORDS} records):
+    ${JSON.stringify(apiData.data.slice(0, CONFIG.DATA_SAMPLING.MAX_SAMPLE_RECORDS), null, 2)}
     
     User Request: ${prompt}`;
 
@@ -165,95 +185,19 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
   }
 
   private parseResponse(text: string): Omit<GeneratedCode, "fullCode"> {
-    console.log("Raw AI response length:", text.length);
-    console.log("Raw AI response (full):", text);
-    console.log("Response ends with:", text.slice(-100)); // Last 100 chars
+    this.logResponseDebugInfo(text);
 
     try {
-      // Method 1: Try multiple JSON extraction patterns
-      const jsonPatterns = [
-        /\{[\s\S]*"javascript"[\s\S]*\}/, // Look for complete JSON with all fields
-        /\{[\s\S]*\}/, // Fallback to any JSON-like structure
-      ];
+      // Try to extract as JSON first
+      const jsonResult = this.tryExtractAsJson(text);
+      if (jsonResult) return jsonResult;
 
-      for (const pattern of jsonPatterns) {
-        const jsonMatch = text.match(pattern);
-        if (jsonMatch) {
-          try {
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (parsed.html && parsed.css && parsed.javascript) {
-              return {
-                html: parsed.html,
-                css: parsed.css,
-                javascript: parsed.javascript,
-              };
-            }
-          } catch (jsonError) {
-            console.warn("JSON parse failed for pattern:", pattern);
-            continue;
-          }
-        }
-      }
+      // Try to extract code blocks
+      const codeBlockResult = this.tryExtractCodeBlocks(text);
+      if (codeBlockResult) return codeBlockResult;
 
-      // Method 2: Extract code blocks with multiple formats
-      const codeBlockPatterns = {
-        html: [
-          /```html\n([\s\S]*?)```/,
-          /```HTML\n([\s\S]*?)```/,
-          /<html[\s\S]*<\/html>/i,
-          /<div[\s\S]*<\/div>/i,
-        ],
-        css: [
-          /```css\n([\s\S]*?)```/,
-          /```CSS\n([\s\S]*?)```/,
-          /<style>([\s\S]*?)<\/style>/i,
-          /\.[\w-]+\s*\{[\s\S]*?\}/,
-        ],
-        javascript: [
-          /```javascript\n([\s\S]*?)```/,
-          /```js\n([\s\S]*?)```/,
-          /```JavaScript\n([\s\S]*?)```/,
-          /<script>([\s\S]*?)<\/script>/i,
-          /function[\s\S]*?\}/,
-          /const\s+\w+[\s\S]*?;/,
-        ],
-      };
-
-      const extractCode = (patterns: RegExp[]): string => {
-        for (const pattern of patterns) {
-          const match = text.match(pattern);
-          if (match) {
-            return match[1] || match[0];
-          }
-        }
-        return "";
-      };
-
-      const html = extractCode(codeBlockPatterns.html);
-      const css = extractCode(codeBlockPatterns.css);
-      const javascript = extractCode(codeBlockPatterns.javascript);
-
-      if (html || css || javascript) {
-        // Basic fallback if parsing succeeds but content is minimal
-        const finalHtml = html || '<div id="root"></div>';
-        const finalCSS = css || "body { background: #0f0f23; color: #e2e8f0; } #root { padding: 20px; }";
-        let finalJS = javascript || '';
-        
-        // If JavaScript looks incomplete (no closing brace/semicolon), try to fix it
-        if (finalJS && !finalJS.trim().endsWith(';') && !finalJS.trim().endsWith('}') && !finalJS.trim().endsWith(')')) {
-          console.warn("JavaScript appears truncated, attempting basic fix");
-          // Don't try to auto-fix, just warn
-        }
-        
-        return {
-          html: finalHtml,
-          css: finalCSS,
-          javascript: finalJS,
-        };
-      }
-
-      // Method 3: Generate a working fallback chart
-      console.warn("AI response could not be parsed, generating fallback Recharts chart");
+      // Fallback to generated chart
+      console.warn("AI response could not be parsed, generating fallback chart");
       return this.generateFallbackChart();
     } catch (error) {
       console.error("Error parsing AI response:", error, "Response text:", text);
@@ -263,120 +207,265 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
     }
   }
 
+  private logResponseDebugInfo(text: string): void {
+    console.log("Raw AI response length:", text.length);
+    console.log("Raw AI response (full):", text);
+    console.log("Response ends with:", text.slice(-CONFIG.DATA_SAMPLING.MAX_RESPONSE_DEBUG_LENGTH));
+  }
+
+  private tryExtractAsJson(text: string): Omit<GeneratedCode, "fullCode"> | null {
+    const jsonPatterns = [
+      /\{[\s\S]*"javascript"[\s\S]*\}/, // Look for complete JSON with all fields
+      /\{[\s\S]*\}/, // Fallback to any JSON-like structure
+    ];
+
+    for (const pattern of jsonPatterns) {
+      const jsonMatch = text.match(pattern);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.html && parsed.css && parsed.javascript) {
+            return {
+              html: parsed.html,
+              css: parsed.css,
+              javascript: parsed.javascript,
+            };
+          }
+        } catch (jsonError) {
+          console.warn("JSON parse failed for pattern:", pattern);
+          continue;
+        }
+      }
+    }
+    return null;
+  }
+
+  private tryExtractCodeBlocks(text: string): Omit<GeneratedCode, "fullCode"> | null {
+    const codeBlockPatterns = {
+      html: [
+        /```html\n([\s\S]*?)```/,
+        /```HTML\n([\s\S]*?)```/,
+        /<html[\s\S]*<\/html>/i,
+        /<div[\s\S]*<\/div>/i,
+      ],
+      css: [
+        /```css\n([\s\S]*?)```/,
+        /```CSS\n([\s\S]*?)```/,
+        /<style>([\s\S]*?)<\/style>/i,
+        /\.[\w-]+\s*\{[\s\S]*?\}/,
+      ],
+      javascript: [
+        /```javascript\n([\s\S]*?)```/,
+        /```js\n([\s\S]*?)```/,
+        /```JavaScript\n([\s\S]*?)```/,
+        /<script>([\s\S]*?)<\/script>/i,
+        /function[\s\S]*?\}/,
+        /const\s+\w+[\s\S]*?;/,
+      ],
+    };
+
+    const extractCode = (patterns: RegExp[], text: string): string => {
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          return match[1] || match[0];
+        }
+      }
+      return "";
+    };
+
+    const html = extractCode(codeBlockPatterns.html, text);
+    const css = extractCode(codeBlockPatterns.css, text);
+    const javascript = extractCode(codeBlockPatterns.javascript, text);
+
+    if (html || css || javascript) {
+      return this.normalizeExtractedCode(html, css, javascript);
+    }
+
+    return null;
+  }
+
+  private normalizeExtractedCode(
+    html: string,
+    css: string,
+    javascript: string,
+  ): Omit<GeneratedCode, "fullCode"> {
+    const finalHtml = html || '<div id="root"></div>';
+    const finalCSS = css ||
+      "body { background: #0f0f23; color: #e2e8f0; } #root { padding: 20px; }";
+    let finalJS = javascript || "";
+
+    // Check for truncated JavaScript
+    if (
+      finalJS && !finalJS.trim().endsWith(";") && !finalJS.trim().endsWith("}") &&
+      !finalJS.trim().endsWith(")")
+    ) {
+      console.warn("JavaScript appears truncated");
+    }
+
+    return {
+      html: finalHtml,
+      css: finalCSS,
+      javascript: finalJS,
+    };
+  }
+
   private validateAndFixCode(
     code: Omit<GeneratedCode, "fullCode">,
     request: VisualizationRequest,
   ): Omit<GeneratedCode, "fullCode"> {
     const issues: string[] = [];
 
-    // Check if code is too minimal
-    if (code.html.length < 50) {
+    // Perform various validations
+    this.validateCodeLength(code, issues);
+    code = this.fixCSSFormatting(code, issues);
+    code = this.cleanupHTML(code);
+    code = this.validateAndCleanJavaScript(code, issues);
+    this.validateChartContainer(code, issues);
+
+    // Check for critical issues
+    this.checkForCriticalIssues(issues);
+
+    // Debug logging
+    this.logValidationDebugInfo(code, issues);
+
+    return code;
+  }
+
+  private validateCodeLength(code: Omit<GeneratedCode, "fullCode">, issues: string[]): void {
+    if (code.html.length < CONFIG.VALIDATION.MIN_HTML_LENGTH) {
       issues.push("HTML too short");
     }
 
-    if (code.css.length < 30) {
+    if (code.css.length < CONFIG.VALIDATION.MIN_CSS_LENGTH) {
       issues.push("CSS too short");
     }
 
-    if (code.javascript.length < 100) {
+    if (code.javascript.length < CONFIG.VALIDATION.MIN_JS_LENGTH) {
       issues.push("JavaScript too short");
     }
+  }
 
-    // Check for common issues
-    if (
-      !code.javascript.includes("canvas") && !code.javascript.includes("svg") &&
-      !code.javascript.includes("Chart")
-    ) {
-      issues.push("No chart drawing code detected");
-    }
-
-    // Fix CSS formatting issues
+  private fixCSSFormatting(
+    code: Omit<GeneratedCode, "fullCode">,
+    issues: string[],
+  ): Omit<GeneratedCode, "fullCode"> {
     if (code.css.includes("\\n")) {
       issues.push("CSS contains unescaped newlines");
       code.css = code.css.replace(/\\n/g, " ");
     }
+    return code;
+  }
 
-    // Fix HTML issues
+  private cleanupHTML(code: Omit<GeneratedCode, "fullCode">): Omit<GeneratedCode, "fullCode"> {
     if (code.html && !code.html.includes("<!DOCTYPE")) {
       // HTML fragment - wrap it properly
       code.html = code.html.trim();
     }
+    return code;
+  }
 
-    // Fix JavaScript issues
-    if (code.javascript) {
-      // Remove any script tags if present (they'll be added by combineCode)
-      code.javascript = code.javascript
-        .replace(/<\/?script[^>]*>/gi, "")
-        .trim();
+  private validateAndCleanJavaScript(
+    code: Omit<GeneratedCode, "fullCode">,
+    issues: string[],
+  ): Omit<GeneratedCode, "fullCode"> {
+    if (!code.javascript) return code;
 
-      // Check for syntax errors in JavaScript
-      try {
-        new Function(code.javascript);
-      } catch (syntaxError) {
-        console.warn("JavaScript syntax error detected:", syntaxError);
-        issues.push("JavaScript syntax error");
-      }
+    // Remove any script tags if present
+    code.javascript = code.javascript
+      .replace(/<\/?script[^>]*>/gi, "")
+      .trim();
 
-      // Check for proper canvas/element access
-      if (code.javascript.includes("getElementById") && !code.html.includes("id=")) {
-        console.warn("JavaScript tries to access element by ID but HTML doesn't define any IDs");
-        issues.push("Missing element ID");
-      }
+    // Check for syntax errors
+    this.checkJavaScriptSyntax(code.javascript, issues);
 
-      // Check for vanilla JavaScript chart implementation
-      const hasCanvas = code.javascript.includes("canvas") && code.javascript.includes("getContext");
-      const hasSVG = code.javascript.includes("svg") || code.javascript.includes("createElementNS");
-      const hasDrawing = code.javascript.includes("fillRect") || 
-                         code.javascript.includes("drawLine") ||
-                         code.javascript.includes("arc") ||
-                         code.javascript.includes("fillText") ||
-                         code.javascript.includes("strokeRect");
-      
-      const hasExternalLibraries = code.javascript.includes("loadScript") ||
-                                   code.javascript.includes("unpkg.com") ||
-                                   code.javascript.includes("cdnjs") ||
-                                   code.javascript.includes("Recharts") ||
-                                   code.javascript.includes("Chart.js") ||
-                                   code.javascript.includes("d3.");
-                               
-      if (hasExternalLibraries) {
-        console.warn("JavaScript uses external libraries - should use vanilla JS only");
-        issues.push("External libraries detected");
-      }
-      
-      if (!hasCanvas && !hasSVG) {
-        console.warn("JavaScript doesn't appear to use Canvas or SVG");
-        issues.push("Missing chart rendering");
-      }
-      
-      if (!hasDrawing) {
-        console.warn("JavaScript doesn't appear to have drawing commands");
-        issues.push("Missing drawing code");
-      }
+    // Check for proper element access
+    this.checkElementAccess(code, issues);
 
-      // Check for complete chart implementation
-      const hasDataProcessing = code.javascript.includes("data") && code.javascript.length > 300;
-      const hasEventHandlers = code.javascript.includes("addEventListener") || 
-                               code.javascript.includes("onclick");
-      
-      if (!hasDataProcessing) {
-        console.warn("JavaScript appears too short or missing data processing");
-        issues.push("Incomplete chart code");
-      }
+    // Check chart implementation
+    this.validateChartImplementation(code.javascript, issues);
+
+    return code;
+  }
+
+  private checkJavaScriptSyntax(javascript: string, issues: string[]): void {
+    try {
+      new Function(javascript);
+    } catch (syntaxError) {
+      console.warn("JavaScript syntax error detected:", syntaxError);
+      issues.push("JavaScript syntax error");
+    }
+  }
+
+  private checkElementAccess(code: Omit<GeneratedCode, "fullCode">, issues: string[]): void {
+    if (code.javascript.includes("getElementById") && !code.html.includes("id=")) {
+      console.warn("JavaScript tries to access element by ID but HTML doesn't define any IDs");
+      issues.push("Missing element ID");
+    }
+  }
+
+  private validateChartImplementation(javascript: string, issues: string[]): void {
+    const hasCanvas = javascript.includes("canvas") && javascript.includes("getContext");
+    const hasSVG = javascript.includes("svg") || javascript.includes("createElementNS");
+    const hasDrawing = this.checkForDrawingCommands(javascript);
+    const hasExternalLibraries = this.checkForExternalLibraries(javascript);
+    const hasDataProcessing = javascript.includes("data") &&
+      javascript.length > CONFIG.VALIDATION.MIN_JS_LENGTH_FOR_CHART;
+
+    if (hasExternalLibraries) {
+      console.warn("JavaScript uses external libraries - should use vanilla JS only");
+      issues.push("External libraries detected");
     }
 
-    // Additional validation for chart container
+    if (!hasCanvas && !hasSVG) {
+      console.warn("JavaScript doesn't appear to use Canvas or SVG");
+      issues.push("Missing chart rendering");
+    }
+
+    if (!hasDrawing) {
+      console.warn("JavaScript doesn't appear to have drawing commands");
+      issues.push("Missing drawing code");
+    }
+
+    if (!hasDataProcessing) {
+      console.warn("JavaScript appears too short or missing data processing");
+      issues.push("Incomplete chart code");
+    }
+  }
+
+  private checkForDrawingCommands(javascript: string): boolean {
+    const drawingCommands = [
+      "fillRect",
+      "drawLine",
+      "arc",
+      "fillText",
+      "strokeRect",
+    ];
+    return drawingCommands.some((cmd) => javascript.includes(cmd));
+  }
+
+  private checkForExternalLibraries(javascript: string): boolean {
+    const externalLibraries = [
+      "loadScript",
+      "unpkg.com",
+      "cdnjs",
+      "Recharts",
+      "Chart.js",
+      "d3.",
+    ];
+    return externalLibraries.some((lib) => javascript.includes(lib));
+  }
+
+  private validateChartContainer(code: Omit<GeneratedCode, "fullCode">, issues: string[]): void {
     if (!code.html.includes("canvas") && !code.html.includes("svg") && !code.html.includes("id=")) {
       console.warn("HTML missing chart container element");
       issues.push("Missing chart container");
     }
+  }
 
-    // Only fail on truly critical issues that prevent execution
-    const criticalIssues = issues.filter(issue => 
-      issue === "JavaScript syntax error"
-      // Being lenient - let minor issues pass through
-    );
-    
+  private checkForCriticalIssues(issues: string[]): void {
+    const criticalIssues = issues.filter((issue) => issue === "JavaScript syntax error");
+
     if (criticalIssues.length > 0) {
       console.error("Generated code has critical issues:", criticalIssues);
       throw new Error(
@@ -385,23 +474,24 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
         }. Please try again with a different or more specific prompt.`,
       );
     }
+  }
 
-    // DEBUG: Log the generated code to see what AI is producing
+  private logValidationDebugInfo(code: Omit<GeneratedCode, "fullCode">, issues: string[]): void {
     console.log("=== AI GENERATED CODE DEBUG ===");
     console.log("HTML:", code.html);
     console.log("CSS:", code.css);
     console.log("JavaScript (first 1000 chars):", code.javascript.substring(0, 1000));
     console.log("Issues found:", issues);
     console.log("================================");
-    
+
     console.log("Code validation passed with", issues.length, "minor issues:", issues);
-    return code;
   }
 
   private generateFallbackChart(): Omit<GeneratedCode, "fullCode"> {
     return {
       html: '<div id="chart"><canvas id="chartCanvas"></canvas></div>',
-      css: 'body{background:#0f0f23;color:#e2e8f0;margin:0;font-family:Arial}#chart{width:100%;height:100vh;padding:20px;display:flex;justify-content:center;align-items:center}canvas{max-width:100%;max-height:100%;background:rgba(30,30,60,0.3);border-radius:8px}',
+      css:
+        "body{background:#0f0f23;color:#e2e8f0;margin:0;font-family:Arial}#chart{width:100%;height:100vh;padding:20px;display:flex;justify-content:center;align-items:center}canvas{max-width:100%;max-height:100%;background:rgba(30,30,60,0.3);border-radius:8px}",
       javascript: `
 // Create a simple vanilla JS bar chart
 const canvas = document.getElementById('chartCanvas');
@@ -506,7 +596,7 @@ canvas.addEventListener('mousemove', (e) => {
     }
   });
 });
-`
+`,
     };
   }
 

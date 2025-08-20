@@ -55,9 +55,7 @@ export const ApiInput = (
         data = await response.json();
       } catch (corsError) {
         // Fallback to CORS proxy for non-CORS enabled APIs
-        const proxyUrl = `https://api.allorigins.win/get?url=${
-          encodeURIComponent(apiUrl)
-        }`;
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
         response = await fetch(proxyUrl);
         const result = await response.json();
 
@@ -100,21 +98,18 @@ export const ApiInput = (
 
       toast({
         title: "Data Fetched Successfully",
-        description:
-          `Found ${fields.length} fields with ${apiData.structure.totalRecords} records`,
+        description: `Found ${fields.length} fields with ${apiData.structure.totalRecords} records`,
       });
     } catch (error) {
       toast({
         title: "Failed to Fetch Data",
-        description:
-          "Please check the URL and try again. Make sure the API supports CORS.",
+        description: "Please check the URL and try again. Make sure the API supports CORS.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
-
 
   return (
     <div className="h-full flex flex-col gap-6">
@@ -141,9 +136,7 @@ export const ApiInput = (
               disabled={isLoading}
               variant="default"
             >
-              {isLoading
-                ? <Loader2 className="w-4 h-4 animate-spin" />
-                : "Analyze"}
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Analyze"}
             </Button>
           </div>
         </div>
@@ -194,7 +187,6 @@ export const ApiInput = (
           </div>
         </Card>
       )}
-
     </div>
   );
 };

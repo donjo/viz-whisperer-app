@@ -1,15 +1,15 @@
-import { useState, useRef, useEffect } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Send, Sparkles, RefreshCw, User, Bot } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Bot, RefreshCw, Send, Sparkles, User } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface VisualizationMessage {
   id: string;
-  type: 'user' | 'system';
+  type: "user" | "system";
   content: string;
   timestamp: Date;
   isGenerating?: boolean;
@@ -22,20 +22,22 @@ interface VisualizationChatProps {
   generatedCode: any;
 }
 
-export const VisualizationChat = ({ 
-  hasData, 
-  onVisualizationRequest, 
+export const VisualizationChat = ({
+  hasData,
+  onVisualizationRequest,
   isGenerating,
-  generatedCode 
+  generatedCode,
 }: VisualizationChatProps) => {
   const [messages, setMessages] = useState<VisualizationMessage[]>([]);
-  const [currentPrompt, setCurrentPrompt] = useState('Create a bar chart showing commit activity over time');
+  const [currentPrompt, setCurrentPrompt] = useState(
+    "Create a bar chart showing commit activity over time",
+  );
   const [hasInitialVisualization, setHasInitialVisualization] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   useEffect(() => {
@@ -46,25 +48,27 @@ export const VisualizationChat = ({
     if (!hasData) {
       setMessages([]);
       setHasInitialVisualization(false);
-      setCurrentPrompt('Create a bar chart showing commit activity over time');
+      setCurrentPrompt("Create a bar chart showing commit activity over time");
     }
   }, [hasData]);
 
   useEffect(() => {
     if (generatedCode && !hasInitialVisualization) {
       setHasInitialVisualization(true);
-      addSystemMessage("Great! I've created your visualization. Feel free to ask for changes like:\n• \"Make it a pie chart instead\"\n• \"Add more colors and animations\"\n• \"Show the data as a line graph\"\n• \"Add interactive tooltips\"");
+      addSystemMessage(
+        'Great! I\'ve created your visualization. Feel free to ask for changes like:\n• "Make it a pie chart instead"\n• "Add more colors and animations"\n• "Show the data as a line graph"\n• "Add interactive tooltips"',
+      );
     }
   }, [generatedCode, hasInitialVisualization]);
 
   const addSystemMessage = (content: string) => {
     const systemMessage: VisualizationMessage = {
       id: Date.now().toString(),
-      type: 'system',
+      type: "system",
       content,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
-    setMessages(prev => [...prev, systemMessage]);
+    setMessages((prev) => [...prev, systemMessage]);
   };
 
   const handleSendPrompt = () => {
@@ -80,32 +84,32 @@ export const VisualizationChat = ({
     // Add user message
     const userMessage: VisualizationMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      type: "user",
       content: currentPrompt,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    
+    setMessages((prev) => [...prev, userMessage]);
+
     // Send the request
     onVisualizationRequest(currentPrompt, !hasInitialVisualization);
-    setCurrentPrompt('');
+    setCurrentPrompt("");
 
     // Add generating message
     const generatingMessage: VisualizationMessage = {
       id: (Date.now() + 1).toString(),
-      type: 'system',
-      content: hasInitialVisualization 
-        ? 'I\'m updating your visualization based on your feedback...'
-        : 'I\'m analyzing your data and creating the visualization...',
+      type: "system",
+      content: hasInitialVisualization
+        ? "I'm updating your visualization based on your feedback..."
+        : "I'm analyzing your data and creating the visualization...",
       timestamp: new Date(),
-      isGenerating: true
+      isGenerating: true,
     };
-    setMessages(prev => [...prev, generatingMessage]);
+    setMessages((prev) => [...prev, generatingMessage]);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendPrompt();
     }
@@ -114,7 +118,7 @@ export const VisualizationChat = ({
   // Remove generating message when done
   useEffect(() => {
     if (!isGenerating) {
-      setMessages(prev => prev.filter(msg => !msg.isGenerating));
+      setMessages((prev) => prev.filter((msg) => !msg.isGenerating));
     }
   }, [isGenerating]);
 
@@ -161,7 +165,7 @@ export const VisualizationChat = ({
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold">
-            {hasInitialVisualization ? 'Refine Your Visualization' : 'Create Visualization'}
+            {hasInitialVisualization ? "Refine Your Visualization" : "Create Visualization"}
           </h3>
           {hasInitialVisualization && (
             <Badge variant="outline" className="text-xs">Interactive</Badge>
@@ -185,21 +189,23 @@ export const VisualizationChat = ({
                 <Button
                   onClick={async () => {
                     try {
-                      const response = await fetch('/api/debug-frontend', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ action: 'test-response' })
+                      const response = await fetch("/api/debug-frontend", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "test-response" }),
                       });
                       const result = await response.json();
-                      console.log('🧪 Debug test result:', result);
+                      console.log("🧪 Debug test result:", result);
                       toast({
                         title: "Debug Test",
-                        description: `Generated test visualization with ID: ${result.visualizationId?.slice(-8)}. Check console for details.`,
+                        description: `Generated test visualization with ID: ${
+                          result.visualizationId?.slice(-8)
+                        }. Check console for details.`,
                       });
                       // Trigger the visualization flow with debug data
                       onVisualizationRequest("Debug test visualization", true);
                     } catch (error) {
-                      console.error('Debug test failed:', error);
+                      console.error("Debug test failed:", error);
                       toast({
                         title: "Debug Test Failed",
                         description: "Check console for error details",
@@ -220,44 +226,52 @@ export const VisualizationChat = ({
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`flex gap-2 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-2 ${message.type === "user" ? "justify-end" : "justify-start"}`}
             >
-              {message.type === 'system' && (
+              {message.type === "system" && (
                 <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                   <Bot className="w-3 h-3 text-primary" />
                 </div>
               )}
-              
+
               <div
                 className={`max-w-[80%] px-3 py-2 rounded-lg ${
-                  message.type === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-foreground'
+                  message.type === "user"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
                 }`}
               >
                 <p className="text-sm whitespace-pre-line">{message.content}</p>
                 <p className="text-[10px] opacity-60 mt-1">
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </p>
                 {message.isGenerating && (
                   <div className="flex items-center gap-1 mt-2">
                     <div className="flex gap-0.5">
                       <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></div>
-                      <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      <div
+                        className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"
+                        style={{ animationDelay: "0.1s" }}
+                      >
+                      </div>
+                      <div
+                        className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"
+                        style={{ animationDelay: "0.2s" }}
+                      >
+                      </div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {message.type === 'user' && (
+              {message.type === "user" && (
                 <div className="w-6 h-6 rounded-full bg-secondary/20 flex items-center justify-center flex-shrink-0">
                   <User className="w-3 h-3 text-secondary" />
                 </div>
               )}
             </div>
           ))}
-          
+
           <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
@@ -280,18 +294,28 @@ export const VisualizationChat = ({
             variant="secondary"
             className="px-6 self-stretch"
           >
-            {isGenerating ? (
-              <div className="flex items-center gap-2">
-                <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+            {isGenerating
+              ? (
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1">
+                    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"></div>
+                    <div
+                      className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"
+                      style={{ animationDelay: "0.1s" }}
+                    >
+                    </div>
+                    <div
+                      className="w-1.5 h-1.5 bg-current rounded-full animate-bounce"
+                      style={{ animationDelay: "0.2s" }}
+                    >
+                    </div>
+                  </div>
+                  <span>Generating...</span>
                 </div>
-                <span>Generating...</span>
-              </div>
-            ) : (
-              getButtonText()
-            )}
+              )
+              : (
+                getButtonText()
+              )}
           </Button>
         </div>
       </div>

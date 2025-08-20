@@ -1,7 +1,17 @@
+// Configuration constants
+const CONFIG = {
+  CLEANUP: {
+    OLD_LOG_THRESHOLD_MS: 60 * 60 * 1000, // 1 hour
+  },
+  TIME_DISPLAY: {
+    SECONDS_PER_MINUTE: 60,
+  },
+} as const;
+
 interface DeploymentEvent {
   id: string;
   timestamp: Date;
-  stage: 'generation' | 'sandbox_creation' | 'deployment' | 'verification' | 'ready' | 'error';
+  stage: "generation" | "sandbox_creation" | "deployment" | "verification" | "ready" | "error";
   message: string;
   details?: any;
   error?: string;
@@ -11,7 +21,7 @@ interface DeploymentLog {
   visualizationId: string;
   startTime: Date;
   endTime?: Date;
-  status: 'pending' | 'deploying' | 'verifying' | 'ready' | 'failed';
+  status: "pending" | "deploying" | "verifying" | "ready" | "failed";
   events: DeploymentEvent[];
   sandboxId?: string;
   sandboxUrl?: string;
@@ -29,13 +39,13 @@ class DeploymentLogger {
     const log: DeploymentLog = {
       visualizationId,
       startTime: new Date(),
-      status: 'pending',
-      events: []
+      status: "pending",
+      events: [],
     };
 
     this.logs.set(visualizationId, log);
-    this.logEvent(visualizationId, 'generation', 'Visualization generation started');
-    
+    this.logEvent(visualizationId, "generation", "Visualization generation started");
+
     console.log(`📊 Starting deployment tracking for visualization: ${visualizationId}`);
     return log;
   }
@@ -44,11 +54,11 @@ class DeploymentLogger {
    * Log an event in the deployment process
    */
   logEvent(
-    visualizationId: string, 
-    stage: DeploymentEvent['stage'], 
-    message: string, 
+    visualizationId: string,
+    stage: DeploymentEvent["stage"],
+    message: string,
     details?: any,
-    error?: string
+    error?: string,
   ): void {
     const log = this.logs.get(visualizationId);
     if (!log) {
@@ -62,29 +72,29 @@ class DeploymentLogger {
       stage,
       message,
       details,
-      error
+      error,
     };
 
     log.events.push(event);
 
     // Update overall status based on stage
     switch (stage) {
-      case 'generation':
-        log.status = 'pending';
+      case "generation":
+        log.status = "pending";
         break;
-      case 'sandbox_creation':
-      case 'deployment':
-        log.status = 'deploying';
+      case "sandbox_creation":
+      case "deployment":
+        log.status = "deploying";
         break;
-      case 'verification':
-        log.status = 'verifying';
+      case "verification":
+        log.status = "verifying";
         break;
-      case 'ready':
-        log.status = 'ready';
+      case "ready":
+        log.status = "ready";
         log.endTime = new Date();
         break;
-      case 'error':
-        log.status = 'failed';
+      case "error":
+        log.status = "failed";
         log.endTime = new Date();
         log.error = error || message;
         break;
@@ -93,13 +103,13 @@ class DeploymentLogger {
     // Enhanced console logging with emojis and formatting
     const emoji = this.getStageEmoji(stage);
     const duration = this.getDuration(log.startTime);
-    
+
     if (error) {
       console.error(`${emoji} [${duration}] ${visualizationId}: ${message}`, error);
-      if (details) console.error('Details:', details);
+      if (details) console.error("Details:", details);
     } else {
       console.log(`${emoji} [${duration}] ${visualizationId}: ${message}`);
-      if (details) console.log('Details:', details);
+      if (details) console.log("Details:", details);
     }
 
     // Notify listeners
@@ -114,8 +124,10 @@ class DeploymentLogger {
     if (log) {
       log.sandboxId = sandboxId;
       log.sandboxUrl = sandboxUrl;
-      this.logEvent(visualizationId, 'sandbox_creation', 
-        `Sandbox created successfully`, { sandboxId, sandboxUrl });
+      this.logEvent(visualizationId, "sandbox_creation", `Sandbox created successfully`, {
+        sandboxId,
+        sandboxUrl,
+      });
     }
   }
 
@@ -123,14 +135,14 @@ class DeploymentLogger {
    * Mark deployment as ready after verification
    */
   markReady(visualizationId: string): void {
-    this.logEvent(visualizationId, 'ready', 'Deployment verified and ready for viewing');
+    this.logEvent(visualizationId, "ready", "Deployment verified and ready for viewing");
   }
 
   /**
    * Mark deployment as failed
    */
   markFailed(visualizationId: string, error: string, details?: any): void {
-    this.logEvent(visualizationId, 'error', 'Deployment failed', details, error);
+    this.logEvent(visualizationId, "error", "Deployment failed", details, error);
   }
 
   /**
@@ -147,7 +159,7 @@ class DeploymentLogger {
     if (!this.listeners.has(visualizationId)) {
       this.listeners.set(visualizationId, []);
     }
-    
+
     this.listeners.get(visualizationId)!.push(callback);
 
     // Return unsubscribe function
@@ -181,20 +193,20 @@ class DeploymentLogger {
       deploying: 0,
       verifying: 0,
       ready: 0,
-      failed: 0
+      failed: 0,
     };
 
     const completedDeployments: number[] = [];
 
-    logs.forEach(log => {
+    logs.forEach((log) => {
       stats[log.status]++;
-      
-      if (log.endTime && log.status === 'ready') {
+
+      if (log.endTime && log.status === "ready") {
         completedDeployments.push(log.endTime.getTime() - log.startTime.getTime());
       }
     });
 
-    const averageDeployTime = completedDeployments.length > 0 
+    const averageDeployTime = completedDeployments.length > 0
       ? completedDeployments.reduce((a, b) => a + b, 0) / completedDeployments.length
       : undefined;
 
@@ -205,7 +217,7 @@ class DeploymentLogger {
    * Clean up old deployment logs (older than 1 hour)
    */
   cleanup(): void {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneHourAgo = new Date(Date.now() - CONFIG.CLEANUP.OLD_LOG_THRESHOLD_MS);
     const toDelete: string[] = [];
 
     for (const [id, log] of this.logs) {
@@ -214,7 +226,7 @@ class DeploymentLogger {
       }
     }
 
-    toDelete.forEach(id => {
+    toDelete.forEach((id) => {
       this.logs.delete(id);
       this.listeners.delete(id);
     });
@@ -224,28 +236,28 @@ class DeploymentLogger {
     }
   }
 
-  private getStageEmoji(stage: DeploymentEvent['stage']): string {
+  private getStageEmoji(stage: DeploymentEvent["stage"]): string {
     const emojis = {
-      generation: '🎨',
-      sandbox_creation: '🏗️',
-      deployment: '🚀',
-      verification: '✅',
-      ready: '🎯',
-      error: '❌'
+      generation: "🎨",
+      sandbox_creation: "🏗️",
+      deployment: "🚀",
+      verification: "✅",
+      ready: "🎯",
+      error: "❌",
     };
-    return emojis[stage] || '📝';
+    return emojis[stage] || "📝";
   }
 
   private getDuration(startTime: Date): string {
     const now = new Date();
     const diff = now.getTime() - startTime.getTime();
     const seconds = Math.floor(diff / 1000);
-    
-    if (seconds < 60) {
+
+    if (seconds < CONFIG.TIME_DISPLAY.SECONDS_PER_MINUTE) {
       return `${seconds}s`;
     } else {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
+      const minutes = Math.floor(seconds / CONFIG.TIME_DISPLAY.SECONDS_PER_MINUTE);
+      const remainingSeconds = seconds % CONFIG.TIME_DISPLAY.SECONDS_PER_MINUTE;
       return `${minutes}m ${remainingSeconds}s`;
     }
   }
@@ -253,11 +265,11 @@ class DeploymentLogger {
   private notifyListeners(visualizationId: string, log: DeploymentLog): void {
     const callbacks = this.listeners.get(visualizationId);
     if (callbacks) {
-      callbacks.forEach(callback => {
+      callbacks.forEach((callback) => {
         try {
           callback(log);
         } catch (error) {
-          console.error('Error in deployment listener:', error);
+          console.error("Error in deployment listener:", error);
         }
       });
     }
@@ -268,4 +280,4 @@ class DeploymentLogger {
 export const deploymentLogger = new DeploymentLogger();
 
 // Export types
-export type { DeploymentLog, DeploymentEvent };
+export type { DeploymentEvent, DeploymentLog };

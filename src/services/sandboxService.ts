@@ -2,6 +2,18 @@
 import { type JsRuntime, Sandbox } from "@deno/sandbox";
 import { deploymentLogger } from "./deploymentLogger.ts";
 
+// Configuration constants
+const CONFIG = {
+  RETRY: {
+    MAX_ATTEMPTS: 5,
+    DELAY_MS: 3000,
+    TIMEOUT_MS: 10000,
+  },
+  CLEANUP: {
+    OLD_SANDBOX_THRESHOLD_MS: 60 * 60 * 1000, // 1 hour
+  },
+} as const;
+
 interface SandboxVisualization {
   id: string;
   sandbox: Sandbox;
@@ -42,156 +54,169 @@ class SandboxService {
     const id = crypto.randomUUID();
 
     try {
-      // Log deployment start
-      if (visualizationId) {
-        deploymentLogger.logEvent(visualizationId, "sandbox_creation", "Starting sandbox creation");
-      }
+      this.validateDeployToken(visualizationId);
 
-      // Create a new sandbox (token is required for the Sandbox API)
-      if (!this.deployToken) {
-        const error =
-          "DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://app.deno.com";
-        if (visualizationId) {
-          deploymentLogger.markFailed(visualizationId, error);
-        }
-        throw new Error(error);
-      }
+      const sandbox = await this.initializeSandbox(visualizationId);
+      const runtime = await this.deployToSandbox(sandbox, generatedCode, id, visualizationId);
+      const url = await this.exposeAndRegisterSandbox(sandbox, runtime, id, visualizationId);
 
-      if (visualizationId) {
-        deploymentLogger.logEvent(
-          visualizationId,
-          "sandbox_creation",
-          "Creating Deno Deploy sandbox instance",
-        );
-      }
-
-      const sandbox = await Sandbox.create({ token: this.deployToken });
-
-      if (visualizationId) {
-        deploymentLogger.logEvent(
-          visualizationId,
-          "deployment",
-          "Generating server code and deploying",
-        );
-      }
-
-      // Generate Deno server code that serves the visualization
-      const serverCode = this.generateServerCode(generatedCode);
-
-      // Debug output commented out - uncomment if needed for troubleshooting
-      // console.log("📝 Generated server code (first 500 chars):");
-      // console.log(serverCode.substring(0, 500) + "...");
-
-      // // Write the complete server code to a debug file for inspection
-      // try {
-      //   await Deno.writeTextFile(`./debug-sandbox-code-${id}.js`, serverCode);
-      //   console.log(`💾 Complete server code written to debug-sandbox-code-${id}.js`);
-
-      //   // Verify the code is syntactically valid JavaScript
-      //   try {
-      //     new Function(serverCode);
-      //     console.log("✅ Server code syntax validation passed");
-      //   } catch (syntaxError) {
-      //     console.error("❌ Server code syntax error:", syntaxError);
-      //     console.error("This might explain why the sandbox isn't working!");
-      //   }
-      // } catch (writeError) {
-      //   console.warn("Failed to write debug file:", writeError);
-      // }
-
-      // Create a JavaScript runtime with the server code
-      const runtime = await sandbox.createJsRuntime({
-        code: serverCode,
-      });
-
-      if (visualizationId) {
-        deploymentLogger.logEvent(
-          visualizationId,
-          "deployment",
-          "Waiting for HTTP server to start",
-        );
-      }
-
-      // Wait for the HTTP server to be ready
-      const isReady = await runtime.httpReady;
-
-      if (!isReady) {
-        const error = "Sandbox runtime failed to start HTTP server";
-        console.error("❌", error);
-        if (visualizationId) {
-          deploymentLogger.markFailed(visualizationId, error, { sandboxId: id });
-        }
-        throw new Error(error);
-      }
-
-      if (visualizationId) {
-        deploymentLogger.logEvent(visualizationId, "deployment", "Exposing HTTP endpoint");
-      }
-
-      // Get a real public URL by exposing the runtime (not the port)
-      const url = await sandbox.exposeHttp(runtime);
-
-      const visualization: SandboxVisualization = {
-        id,
-        sandbox,
-        runtime,
-        url,
-        createdAt: new Date(),
-      };
-
-      this.activeSandboxes.set(id, visualization);
-
-      if (visualizationId) {
-        deploymentLogger.setSandboxInfo(visualizationId, id, url);
-        deploymentLogger.logEvent(
-          visualizationId,
-          "verification",
-          "Verifying deployment accessibility",
-        );
-
-        // Verify the deployment is accessible
-        try {
-          await this.verifyDeployment(url, visualizationId);
-        } catch (verificationError) {
-          // Log warning but don't fail - sandbox might need more time to be accessible
-          deploymentLogger.logEvent(
-            visualizationId,
-            "verification",
-            "Verification failed but proceeding - sandbox may need more time to be accessible",
-            {
-              error: verificationError instanceof Error
-                ? verificationError.message
-                : "Unknown error",
-            },
-          );
-          deploymentLogger.markReady(visualizationId);
-        }
-      }
+      await this.performPostDeploymentVerification(url, visualizationId);
 
       console.log(`Created sandbox visualization ${id} at ${url}`);
       return { id, url };
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      console.error("Failed to create sandbox visualization:", error);
-
-      if (visualizationId) {
-        deploymentLogger.markFailed(
-          visualizationId,
-          `Sandbox creation failed: ${errorMessage}`,
-          error,
-        );
-      }
-
-      throw new Error(`Failed to create sandbox: ${errorMessage}`);
+      this.handleCreationError(error, id, visualizationId);
+      throw error;
     }
+  }
+
+  private validateDeployToken(visualizationId?: string): void {
+    if (!this.deployToken) {
+      const error =
+        "DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://app.deno.com";
+      if (visualizationId) {
+        deploymentLogger.markFailed(visualizationId, error);
+      }
+      throw new Error(error);
+    }
+  }
+
+  private async initializeSandbox(visualizationId?: string): Promise<Sandbox> {
+    if (visualizationId) {
+      deploymentLogger.logEvent(visualizationId, "sandbox_creation", "Starting sandbox creation");
+      deploymentLogger.logEvent(
+        visualizationId,
+        "sandbox_creation",
+        "Creating Deno Deploy sandbox instance",
+      );
+    }
+
+    return await Sandbox.create({ token: this.deployToken });
+  }
+
+  private async deployToSandbox(
+    sandbox: Sandbox,
+    generatedCode: GeneratedCode,
+    sandboxId: string,
+    visualizationId?: string,
+  ): Promise<JsRuntime> {
+    if (visualizationId) {
+      deploymentLogger.logEvent(
+        visualizationId,
+        "deployment",
+        "Generating server code and deploying",
+      );
+    }
+
+    const serverCode = this.generateServerCode(generatedCode);
+
+    // Create a JavaScript runtime with the server code
+    const runtime = await sandbox.createJsRuntime({
+      code: serverCode,
+    });
+
+    if (visualizationId) {
+      deploymentLogger.logEvent(
+        visualizationId,
+        "deployment",
+        "Waiting for HTTP server to start",
+      );
+    }
+
+    // Wait for the HTTP server to be ready
+    const isReady = await runtime.httpReady;
+
+    if (!isReady) {
+      const error = "Sandbox runtime failed to start HTTP server";
+      console.error("❌", error);
+      if (visualizationId) {
+        deploymentLogger.markFailed(visualizationId, error, { sandboxId });
+      }
+      throw new Error(error);
+    }
+
+    return runtime;
+  }
+
+  private async exposeAndRegisterSandbox(
+    sandbox: Sandbox,
+    runtime: JsRuntime,
+    id: string,
+    visualizationId?: string,
+  ): Promise<string> {
+    if (visualizationId) {
+      deploymentLogger.logEvent(visualizationId, "deployment", "Exposing HTTP endpoint");
+    }
+
+    // Get a real public URL by exposing the runtime
+    const url = await sandbox.exposeHttp(runtime);
+
+    const visualization: SandboxVisualization = {
+      id,
+      sandbox,
+      runtime,
+      url,
+      createdAt: new Date(),
+    };
+
+    this.activeSandboxes.set(id, visualization);
+
+    if (visualizationId) {
+      deploymentLogger.setSandboxInfo(visualizationId, id, url);
+    }
+
+    return url;
+  }
+
+  private async performPostDeploymentVerification(
+    url: string,
+    visualizationId?: string,
+  ): Promise<void> {
+    if (!visualizationId) return;
+
+    deploymentLogger.logEvent(
+      visualizationId,
+      "verification",
+      "Verifying deployment accessibility",
+    );
+
+    try {
+      await this.verifyDeployment(url, visualizationId);
+    } catch (verificationError) {
+      // Log warning but don't fail - sandbox might need more time to be accessible
+      deploymentLogger.logEvent(
+        visualizationId,
+        "verification",
+        "Verification failed but proceeding - sandbox may need more time to be accessible",
+        {
+          error: verificationError instanceof Error ? verificationError.message : "Unknown error",
+        },
+      );
+      deploymentLogger.markReady(visualizationId);
+    }
+  }
+
+  private handleCreationError(error: unknown, _sandboxId: string, visualizationId?: string): void {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("Failed to create sandbox visualization:", error);
+
+    if (visualizationId) {
+      deploymentLogger.markFailed(
+        visualizationId,
+        `Sandbox creation failed: ${errorMessage}`,
+        error,
+      );
+    }
+
+    throw new Error(`Failed to create sandbox: ${errorMessage}`);
   }
 
   /**
    * Verify that a deployed sandbox is accessible and responding
    */
   private async verifyDeployment(url: string, visualizationId?: string): Promise<void> {
-    const maxRetries = 5; // Increase retries
-    const retryDelay = 3000; // 3 seconds - give sandbox more time
+    const maxRetries = CONFIG.RETRY.MAX_ATTEMPTS;
+    const retryDelay = CONFIG.RETRY.DELAY_MS;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -206,7 +231,7 @@ class SandboxService {
 
         const response = await fetch(url, {
           method: "GET",
-          signal: AbortSignal.timeout(10000), // 10 second timeout
+          signal: AbortSignal.timeout(CONFIG.RETRY.TIMEOUT_MS),
         });
 
         if (response.ok) {
@@ -298,7 +323,7 @@ class SandboxService {
    * Cleanup old sandboxes (older than 1 hour)
    */
   async cleanupOldSandboxes(): Promise<void> {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const oneHourAgo = new Date(Date.now() - CONFIG.CLEANUP.OLD_SANDBOX_THRESHOLD_MS);
     const toDestroy: string[] = [];
 
     for (const [id, visualization] of this.activeSandboxes) {
