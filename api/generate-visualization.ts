@@ -39,6 +39,8 @@ export default async function handler(req: Request): Promise<Response> {
     return new Response('Method not allowed', { status: 405 });
   }
 
+  let visualizationId: string | undefined;
+  
   try {
     const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
     
@@ -51,7 +53,7 @@ export default async function handler(req: Request): Promise<Response> {
     const requestData: VisualizationRequest = await req.json();
     
     // Start deployment logging
-    const visualizationId = crypto.randomUUID();
+    visualizationId = crypto.randomUUID();
     const deploymentLog = deploymentLogger.startDeployment(visualizationId);
     
     const client = new Anthropic({

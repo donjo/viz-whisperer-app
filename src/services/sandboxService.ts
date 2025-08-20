@@ -73,7 +73,7 @@ class SandboxService {
   private validateDeployToken(visualizationId?: string): void {
     if (!this.deployToken) {
       const error =
-        "DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://app.deno.com";
+        "DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://console.deno.com";
       if (visualizationId) {
         deploymentLogger.markFailed(visualizationId, error);
       }
