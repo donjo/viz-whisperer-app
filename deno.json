@@ -40,7 +40,7 @@
   },
   "imports": {
     "@/": "./src/",
-    "@deno/sandbox": "jsr:@deno/sandbox@^0.0.3",
+    "@deno/sandbox": "jsr:@deno/sandbox@^0.0.4",
     "@std/http": "jsr:@std/http@^1.0.20",
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.60.0",
     "@hookform/resolvers": "npm:@hookform/resolvers@^3.10.0",
