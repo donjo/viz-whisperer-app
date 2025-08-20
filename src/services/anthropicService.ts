@@ -308,7 +308,7 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
     const finalHtml = html || '<div id="root"></div>';
     const finalCSS = css ||
       "body { background: #0f0f23; color: #e2e8f0; } #root { padding: 20px; }";
-    let finalJS = javascript || "";
+    const finalJS = javascript || "";
 
     // Check for truncated JavaScript
     if (

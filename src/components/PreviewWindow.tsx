@@ -310,7 +310,7 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                           ? "Verifying deployment..."
                           : "Finalizing deployment..."}
                       </p>
-                      {deploymentStatus?.events?.length > 0 && (
+                      {deploymentStatus?.events && deploymentStatus.events.length > 0 && (
                         <p className="text-xs text-muted-foreground mt-2">
                           {deploymentStatus.events[deploymentStatus.events.length - 1]?.message}
                         </p>

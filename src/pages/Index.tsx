@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { ApiInput } from "@/components/ApiInput";
-import { PreviewWindow } from "@/components/PreviewWindow";
-import { VisualizationChat } from "@/components/VisualizationChat";
-import { CodeGenerator } from "@/utils/CodeGenerator";
-import { Badge } from "@/components/ui/badge";
+import { ApiInput } from "@/components/ApiInput.tsx";
+import { PreviewWindow } from "@/components/PreviewWindow.tsx";
+import { VisualizationChat } from "@/components/VisualizationChat.tsx";
+import { CodeGenerator } from "@/utils/CodeGenerator.ts";
+import { Badge } from "@/components/ui/badge.tsx";
 import { AlertCircle, Database, Sparkles } from "lucide-react";
-import { anthropicService } from "@/services/anthropicService";
-import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
+import { anthropicService } from "@/services/anthropicService.ts";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable.tsx";
 interface ApiData {
   url: string;
   data: any;

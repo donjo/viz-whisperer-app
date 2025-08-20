@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Card } from "@/components/ui/card.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
+import { useToast } from "@/hooks/use-toast.ts";
 import { Loader2 } from "lucide-react";
 
 interface ApiData {
@@ -127,9 +127,9 @@ export const ApiInput = (
             <Input
               placeholder="https://api.example.com/data"
               value={apiUrl}
-              onChange={(e) => setApiUrl(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setApiUrl(e.target.value)}
               className="flex-1 font-mono text-sm"
-              onKeyDown={(e) => e.key === "Enter" && fetchApiData()}
+              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && fetchApiData()}
             />
             <Button
               onClick={fetchApiData}

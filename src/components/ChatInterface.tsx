@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Input } from "@/components/ui/input.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
 import { Bot, MessageSquare, Send, User } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast.ts";
 
 interface ChatMessage {
   id: string;
@@ -154,7 +154,7 @@ export const ChatInterface = ({ onMessage, isProcessing }: ChatInterfaceProps) =
           <Input
             placeholder="Describe how to modify your visualization..."
             value={currentMessage}
-            onChange={(e) => setCurrentMessage(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCurrentMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             className="flex-1"
             disabled={isProcessing}

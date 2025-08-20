@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card } from "@/components/ui/card.tsx";
+import { Button } from "@/components/ui/button.tsx";
+import { Textarea } from "@/components/ui/textarea.tsx";
+import { Badge } from "@/components/ui/badge.tsx";
+import { ScrollArea } from "@/components/ui/scroll-area.tsx";
 import { Bot, RefreshCw, Send, Sparkles, User } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast.ts";
 
 interface VisualizationMessage {
   id: string;
@@ -282,7 +282,7 @@ export const VisualizationChat = ({
           <Textarea
             placeholder={getPlaceholderText()}
             value={currentPrompt}
-            onChange={(e) => setCurrentPrompt(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCurrentPrompt(e.target.value)}
             onKeyPress={handleKeyPress}
             className="flex-1 resize-none text-sm py-2 px-3"
             disabled={isGenerating}

@@ -8,7 +8,7 @@
     "preview": "deno run -A npm:vite preview",
     "lint": "deno lint",
     "fmt": "deno fmt",
-    "check": "deno check **/*.ts **/*.tsx"
+    "check": "deno check src/"
   },
   "lint": {
     "include": ["src/"],

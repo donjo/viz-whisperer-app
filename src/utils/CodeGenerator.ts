@@ -1,4 +1,4 @@
-import { anthropicService } from "@/services/anthropicService";
+import { anthropicService } from "@/services/anthropicService.ts";
 
 interface ApiData {
   url: string;
