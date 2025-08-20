@@ -192,7 +192,6 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-semibold">Generated Visualization</h3>
               <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                <ExternalLink className="w-3 h-3 mr-1" />
                 Sandbox Deploy
               </Badge>
             </div>
@@ -223,34 +222,6 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
             )}
           </div>
           <div className="flex items-center gap-2">
-            {generatedCode.sandboxId && generatedCode.sandboxUrl && (
-              <Button
-                onClick={() => {
-                  if (generatedCode.sandboxUrl?.startsWith('https://')) {
-                    // Try to open the sandbox URL, but warn about potential issues
-                    navigator.clipboard.writeText(generatedCode.sandboxUrl);
-                    toast({
-                      title: "Sandbox URL Copied",
-                      description: "Note: Sandbox URLs may take a moment to become accessible or may be in development mode.",
-                    });
-                    // Still try to open it
-                    window.open(generatedCode.sandboxUrl, '_blank');
-                  } else {
-                    // Development/local URL - show info toast
-                    toast({
-                      title: "Development Mode",
-                      description: `Sandbox URL: ${generatedCode.sandboxUrl}`,
-                    });
-                  }
-                }}
-                variant="outline"
-                size="sm"
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Open Sandbox
-              </Button>
-            )}
             <Button
               onClick={downloadCode}
               variant="outline"
