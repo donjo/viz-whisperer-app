@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@deno/sandbox@^0.0.4": "0.0.4",
     "jsr:@std/cli@^1.0.21": "1.0.21",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
@@ -77,6 +78,14 @@
     "npm:zod@^4.0.14": "4.0.17"
   },
   "jsr": {
+    "@deno/sandbox@0.0.4": {
+      "integrity": "57b4cff26302e2df6ecb057bfb6b032dabcb3e5a3583e9685b37fa0bbf4fc3c4",
+      "dependencies": [
+        "npm:devalue",
+        "npm:ws",
+        "npm:zod@^4.0.14"
+      ]
+    },
     "@std/cli@1.0.21": {
       "integrity": "cd25b050bdf6282e321854e3822bee624f07aca7636a3a76d95f77a3a919ca2a"
     },
