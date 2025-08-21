@@ -52,6 +52,7 @@
     "npm:clsx@^2.1.1": "2.1.1",
     "npm:cmdk@^1.1.1": "1.1.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.23_@types+react-dom@18.3.7__@types+react@18.3.23",
     "npm:date-fns@^3.6.0": "3.6.0",
+    "npm:devalue@^5.1.1": "5.1.1",
     "npm:embla-carousel-react@^8.6.0": "8.6.0_react@18.3.1_embla-carousel@8.6.0",
     "npm:input-otp@^1.4.2": "1.4.2_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:lucide-react@0.462": "0.462.0_react@18.3.1",
@@ -71,7 +72,9 @@
     "npm:vaul@~0.9.9": "0.9.9_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.23_@types+react-dom@18.3.7__@types+react@18.3.23",
     "npm:vite@*": "5.4.19_@types+node@22.17.2",
     "npm:vite@^5.4.19": "5.4.19_@types+node@22.17.2",
-    "npm:zod@^3.25.76": "3.25.76"
+    "npm:ws@^8.18.0": "8.18.3",
+    "npm:zod@^3.25.76": "3.25.76",
+    "npm:zod@^4.0.14": "4.0.17"
   },
   "jsr": {
     "@std/cli@1.0.21": {
@@ -1786,6 +1789,9 @@
     "detect-node-es@1.1.0": {
       "integrity": "sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ=="
     },
+    "devalue@5.1.1": {
+      "integrity": "sha512-maua5KUiapvEwiEAe+XnlZ3Rh0GD+qI1J/nb9vrJc3muPXvcF/8gXYTWF76+5DAqHyDUtOIImEuo0YKE9mshVw=="
+    },
     "didyoumean@1.2.2": {
       "integrity": "sha512-gxtyfqMg7GKyhQmb056K7M3xszy/myH8w+B4RT+QXBQsvAOdc3XymqDDPHx1BgPgsdAA5SIifona89YtRATDzw=="
     },
@@ -2633,6 +2639,9 @@
     },
     "zod@3.25.76": {
       "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
+    },
+    "zod@4.0.17": {
+      "integrity": "sha512-1PHjlYRevNxxdy2JZ8JcNAw7rX8V9P1AKkP+x/xZfxB0K5FYfuV+Ug6P/6NVSR2jHQ+FzDDoDHS04nYUsOIyLQ=="
     }
   },
   "workspace": {
