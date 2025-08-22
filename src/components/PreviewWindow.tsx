@@ -97,8 +97,8 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
   };
 
   useEffect(() => {
-    if (generatedCode?.visualizationId) {
-      // Start monitoring deployment status
+    if (generatedCode?.visualizationId && !generatedCode?.sandboxUrl) {
+      // Only monitor deployment status if we don't already have a sandbox URL
       setDeploymentStatus(null);
       setDeploymentError(null);
       monitorDeployment(generatedCode.visualizationId);
@@ -260,7 +260,14 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
               activeTab === "preview" ? "block" : "hidden"
             }`}
           >
-            {deploymentError || deploymentStatus?.status === "failed"
+            {generatedCode?.sandboxUrl ? (
+              <iframe
+                className="w-full h-full"
+                src={generatedCode.sandboxUrl}
+                sandbox="allow-scripts allow-same-origin"
+                title="Sandbox Deployed Visualization"
+              />
+            ) : deploymentError || deploymentStatus?.status === "failed"
               ? (
                 <div className="w-full h-full flex items-center justify-center bg-background">
                   <div className="text-center space-y-4">
@@ -282,15 +289,6 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                     </div>
                   </div>
                 </div>
-              )
-              : deploymentStatus?.status === "ready" && deploymentStatus?.sandboxUrl
-              ? (
-                <iframe
-                  className="w-full h-full"
-                  src={deploymentStatus.sandboxUrl}
-                  sandbox="allow-scripts allow-same-origin"
-                  title="Sandbox Deployed Visualization"
-                />
               )
               : (
                 <div className="w-full h-full flex items-center justify-center bg-background">
