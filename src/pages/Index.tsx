@@ -91,7 +91,7 @@ const Index = () => {
                 <Database className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold">Vibe Vizing</h1>
+                <h1 className="text-2xl font-bold">Viz Whisperer</h1>
                 <p className="text-sm text-muted-foreground">
                   Build data visualizations through natural language
                 </p>
