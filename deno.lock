@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@deno/sandbox@^0.0.4": "0.0.4",
+    "jsr:@deno/sandbox@^0.0.5": "0.0.5",
     "jsr:@std/cli@^1.0.21": "1.0.21",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
@@ -78,8 +78,8 @@
     "npm:zod@^4.0.14": "4.0.17"
   },
   "jsr": {
-    "@deno/sandbox@0.0.4": {
-      "integrity": "57b4cff26302e2df6ecb057bfb6b032dabcb3e5a3583e9685b37fa0bbf4fc3c4",
+    "@deno/sandbox@0.0.5": {
+      "integrity": "65ecf37665e17770fec704ca47ab08261243fa4d9e21bc2de7b6ea03880d3fa6",
       "dependencies": [
         "npm:devalue",
         "npm:ws",
@@ -2655,7 +2655,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@deno/sandbox@^0.0.4",
+      "jsr:@deno/sandbox@^0.0.5",
       "jsr:@std/http@^1.0.20",
       "npm:@anthropic-ai/sdk@0.60",
       "npm:@hookform/resolvers@^3.10.0",

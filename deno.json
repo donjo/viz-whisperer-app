@@ -8,7 +8,9 @@
     "preview": "deno run -A npm:vite preview",
     "lint": "deno lint",
     "fmt": "deno fmt",
-    "check": "deno check src/"
+    "check": "deno check src/",
+    "test:token": "deno run -A --env-file=.env.local test-deno-token.ts",
+    "test:endpoints": "deno run -A --env-file=.env.local test-endpoints.ts"
   },
   "lint": {
     "include": ["src/"],
@@ -40,7 +42,7 @@
   },
   "imports": {
     "@/": "./src/",
-    "@deno/sandbox": "jsr:@deno/sandbox@^0.0.4",
+    "@deno/sandbox": "jsr:@deno/sandbox@^0.0.5",
     "@std/http": "jsr:@std/http@^1.0.20",
     "@anthropic-ai/sdk": "npm:@anthropic-ai/sdk@^0.60.0",
     "@hookform/resolvers": "npm:@hookform/resolvers@^3.10.0",

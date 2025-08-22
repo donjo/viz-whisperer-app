@@ -118,17 +118,21 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
         visualizationId, // Add the ID so the client can track deployment
       };
       
-      // Create a sandbox for the visualization (required)
-      const sandbox = await sandboxService.createVisualization({
-        html: validated.html,
-        css: validated.css,
-        javascript: validated.javascript
-      }, visualizationId);
-      
-      result.sandboxId = sandbox.id;
-      result.sandboxUrl = sandbox.url;
-      
-      console.log(`Created sandbox ${sandbox.id} for visualization at ${sandbox.url}`);
+      // Create a sandbox for the visualization (optional - fallback if it fails)
+      try {
+        const sandbox = await sandboxService.createVisualization({
+          html: validated.html,
+          css: validated.css,
+          javascript: validated.javascript
+        }, visualizationId);
+        
+        result.sandboxId = sandbox.id;
+        result.sandboxUrl = sandbox.url;
+        console.log(`Created sandbox ${sandbox.id} for visualization at ${sandbox.url}`);
+      } catch (sandboxError) {
+        console.warn('Sandbox creation failed, continuing without sandbox:', sandboxError);
+        // Still return the visualization code even if sandbox fails
+      }
       
       return Response.json(result);
     }
