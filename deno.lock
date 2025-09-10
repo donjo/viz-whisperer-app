@@ -1,7 +1,7 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@deno/sandbox@^0.0.5": "0.0.5",
+    "jsr:@deno/sandbox@^0.0.10": "0.0.10",
     "jsr:@std/cli@^1.0.21": "1.0.21",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fmt@^1.0.8": "1.0.8",
@@ -53,7 +53,7 @@
     "npm:clsx@^2.1.1": "2.1.1",
     "npm:cmdk@^1.1.1": "1.1.1_react@18.3.1_react-dom@18.3.1__react@18.3.1_@types+react@18.3.23_@types+react-dom@18.3.7__@types+react@18.3.23",
     "npm:date-fns@^3.6.0": "3.6.0",
-    "npm:devalue@^5.1.1": "5.1.1",
+    "npm:devalue@5.3.2": "5.3.2",
     "npm:embla-carousel-react@^8.6.0": "8.6.0_react@18.3.1_embla-carousel@8.6.0",
     "npm:input-otp@^1.4.2": "1.4.2_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:lucide-react@0.462": "0.462.0_react@18.3.1",
@@ -74,16 +74,16 @@
     "npm:vite@*": "5.4.19_@types+node@22.17.2",
     "npm:vite@^5.4.19": "5.4.19_@types+node@22.17.2",
     "npm:ws@^8.18.0": "8.18.3",
-    "npm:zod@^3.25.76": "3.25.76",
-    "npm:zod@^4.0.14": "4.0.17"
+    "npm:zod@4.1.5": "4.1.5",
+    "npm:zod@^3.25.76": "3.25.76"
   },
   "jsr": {
-    "@deno/sandbox@0.0.5": {
-      "integrity": "65ecf37665e17770fec704ca47ab08261243fa4d9e21bc2de7b6ea03880d3fa6",
+    "@deno/sandbox@0.0.10": {
+      "integrity": "e83bde86276831c49e445c458b7404fa1d3be0a80de7bcfac252f84e3f6415c6",
       "dependencies": [
         "npm:devalue",
         "npm:ws",
-        "npm:zod@^4.0.14"
+        "npm:zod@4.1.5"
       ]
     },
     "@std/cli@1.0.21": {
@@ -1798,8 +1798,8 @@
     "detect-node-es@1.1.0": {
       "integrity": "sha512-ypdmJU/TbBby2Dxibuv7ZLW3Bs1QEmM7nHjEANfohJLvE0XVujisn1qPJcZxg+qDucsr+bP6fLD1rPS3AhJ7EQ=="
     },
-    "devalue@5.1.1": {
-      "integrity": "sha512-maua5KUiapvEwiEAe+XnlZ3Rh0GD+qI1J/nb9vrJc3muPXvcF/8gXYTWF76+5DAqHyDUtOIImEuo0YKE9mshVw=="
+    "devalue@5.3.2": {
+      "integrity": "sha512-UDsjUbpQn9kvm68slnrs+mfxwFkIflOhkanmyabZ8zOYk8SMEIbJ3TK+88g70hSIeytu4y18f0z/hYHMTrXIWw=="
     },
     "didyoumean@1.2.2": {
       "integrity": "sha512-gxtyfqMg7GKyhQmb056K7M3xszy/myH8w+B4RT+QXBQsvAOdc3XymqDDPHx1BgPgsdAA5SIifona89YtRATDzw=="
@@ -2649,13 +2649,13 @@
     "zod@3.25.76": {
       "integrity": "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="
     },
-    "zod@4.0.17": {
-      "integrity": "sha512-1PHjlYRevNxxdy2JZ8JcNAw7rX8V9P1AKkP+x/xZfxB0K5FYfuV+Ug6P/6NVSR2jHQ+FzDDoDHS04nYUsOIyLQ=="
+    "zod@4.1.5": {
+      "integrity": "sha512-rcUUZqlLJgBC33IT3PNMgsCq6TzLQEG/Ei/KTCU0PedSWRMAXoOUN+4t/0H+Q8bdnLPdqUYnvboJT0bn/229qg=="
     }
   },
   "workspace": {
     "dependencies": [
-      "jsr:@deno/sandbox@^0.0.5",
+      "jsr:@deno/sandbox@^0.0.10",
       "jsr:@std/http@^1.0.20",
       "npm:@anthropic-ai/sdk@0.60",
       "npm:@hookform/resolvers@^3.10.0",

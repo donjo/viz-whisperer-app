@@ -120,17 +120,24 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
       
       // Create a sandbox for the visualization (optional - fallback if it fails)
       try {
-        const sandbox = await sandboxService.createVisualization({
+        // Add a timeout to prevent sandbox creation from hanging indefinitely
+        const sandboxPromise = sandboxService.createVisualization({
           html: validated.html,
           css: validated.css,
           javascript: validated.javascript
         }, visualizationId);
         
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Sandbox creation timeout after 5 seconds')), 5000);
+        });
+        
+        const sandbox = await Promise.race([sandboxPromise, timeoutPromise]) as { id: string; url: string };
+        
         result.sandboxId = sandbox.id;
         result.sandboxUrl = sandbox.url;
         console.log(`Created sandbox ${sandbox.id} for visualization at ${sandbox.url}`);
       } catch (sandboxError) {
-        console.warn('Sandbox creation failed, continuing without sandbox:', sandboxError);
+        console.warn('Sandbox creation failed or timed out, continuing without sandbox:', sandboxError);
         // Still return the visualization code even if sandbox fails
       }
       

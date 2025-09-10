@@ -3,8 +3,7 @@ import { ApiInput } from "@/components/ApiInput.tsx";
 import { PreviewWindow } from "@/components/PreviewWindow.tsx";
 import { VisualizationChat } from "@/components/VisualizationChat.tsx";
 import { CodeGenerator } from "@/utils/CodeGenerator.ts";
-import { Badge } from "@/components/ui/badge.tsx";
-import { AlertCircle, Database, Sparkles } from "lucide-react";
+import { Database } from "lucide-react";
 import { anthropicService } from "@/services/anthropicService.ts";
 import {
   ResizableHandle,
@@ -96,21 +95,6 @@ const Index = () => {
                   Build data visualizations through natural language
                 </p>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isAIConfigured
-                ? (
-                  <Badge variant="outline" className="hidden sm:flex">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    AI-Powered (Live)
-                  </Badge>
-                )
-                : (
-                  <Badge variant="secondary" className="hidden sm:flex">
-                    <AlertCircle className="w-3 h-3 mr-1" />
-                    Demo Mode
-                  </Badge>
-                )}
             </div>
           </div>
         </div>
