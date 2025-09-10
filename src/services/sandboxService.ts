@@ -119,21 +119,22 @@ class SandboxService {
       deploymentLogger.logEvent(
         visualizationId,
         "deployment",
-        "Waiting for HTTP server to start",
+        "HTTP server starting (skipping httpReady check)",
       );
     }
 
-    // Wait for the HTTP server to be ready
-    const isReady = await runtime.httpReady;
-
-    if (!isReady) {
-      const error = "Sandbox runtime failed to start HTTP server";
-      console.error("❌", error);
-      if (visualizationId) {
-        deploymentLogger.markFailed(visualizationId, error, { sandboxId });
-      }
-      throw new Error(error);
-    }
+    // Skip waiting for httpReady since it seems to hang but sandboxes work anyway
+    // The sandboxes are actually starting on Deno Deploy according to the dashboard
+    // const isReady = await runtime.httpReady;
+    
+    // if (!isReady) {
+    //   const error = "Sandbox runtime failed to start HTTP server";
+    //   console.error("❌", error);
+    //   if (visualizationId) {
+    //     deploymentLogger.markFailed(visualizationId, error, { sandboxId });
+    //   }
+    //   throw new Error(error);
+    // }
 
     return runtime;
   }

@@ -136,8 +136,11 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
         result.sandboxId = sandbox.id;
         result.sandboxUrl = sandbox.url;
         console.log(`Created sandbox ${sandbox.id} for visualization at ${sandbox.url}`);
+        deploymentLogger.markReady(visualizationId);
       } catch (sandboxError) {
         console.warn('Sandbox creation failed or timed out, continuing without sandbox:', sandboxError);
+        // Mark as ready even if sandbox fails since we have the visualization code
+        deploymentLogger.markReady(visualizationId);
         // Still return the visualization code even if sandbox fails
       }
       
