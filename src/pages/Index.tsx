@@ -3,7 +3,7 @@ import { ApiInput } from "@/components/ApiInput.tsx";
 import { PreviewWindow } from "@/components/PreviewWindow.tsx";
 import { VisualizationChat } from "@/components/VisualizationChat.tsx";
 import { CodeGenerator } from "@/utils/CodeGenerator.ts";
-import { Database } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { anthropicService } from "@/services/anthropicService.ts";
 import {
   ResizableHandle,
@@ -86,9 +86,7 @@ const Index = () => {
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center">
-                <Database className="w-6 h-6 text-primary-foreground" />
-              </div>
+              <BarChart3 className="w-12 h-12 text-primary" />
               <div>
                 <h1 className="text-2xl font-bold">Viz Whisperer</h1>
                 <p className="text-sm text-muted-foreground">

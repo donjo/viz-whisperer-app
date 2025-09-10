@@ -167,9 +167,6 @@ export const VisualizationChat = ({
           <h3 className="text-sm font-semibold">
             {hasInitialVisualization ? "Refine Your Visualization" : "Create Visualization"}
           </h3>
-          {hasInitialVisualization && (
-            <Badge variant="outline" className="text-xs">Interactive</Badge>
-          )}
         </div>
       </div>
 

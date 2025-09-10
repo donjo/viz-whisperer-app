@@ -148,7 +148,7 @@ export const ApiInput = (
         <Card className="panel-glass p-6 flex-1 min-h-0 flex flex-col">
           <div className="flex items-center gap-2 mb-4 flex-shrink-0">
             <h3 className="text-lg font-semibold">Data Structure</h3>
-            <Badge variant="secondary">
+            <Badge variant="outline">
               {currentData.structure.totalRecords} records
             </Badge>
           </div>
@@ -159,9 +159,9 @@ export const ApiInput = (
                 {currentData.structure.fields.map((field, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg"
+                    className="flex items-center justify-between p-3 bg-muted/30 rounded-lg min-w-0"
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <span className="font-mono text-sm">{field.name}</span>
                       <Badge
                         variant="outline"
@@ -178,7 +178,7 @@ export const ApiInput = (
                         {field.type}
                       </Badge>
                     </div>
-                    <span className="text-xs text-muted-foreground font-mono truncate max-w-32">
+                    <span className="text-xs text-muted-foreground font-mono truncate flex-1 text-right ml-8">
                       {String(field.sample)}
                     </span>
                   </div>
