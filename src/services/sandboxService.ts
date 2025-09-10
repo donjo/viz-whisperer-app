@@ -33,14 +33,17 @@ class SandboxService {
   private deployToken: string;
 
   constructor() {
-    // Get the deploy token from environment variables (required for Sandbox API)
-    this.deployToken = Deno.env.get("DENO_DEPLOY_TOKEN") || "";
+    // In development, use DENO_DEPLOY_DEV_TOKEN, otherwise use DENO_DEPLOY_TOKEN
+    const isDevelopment = Deno.env.get("DENO_ENV") === "development" || !Deno.env.get("DENO_DEPLOYMENT_ID");
+    const tokenKey = isDevelopment ? "DENO_DEPLOY_DEV_TOKEN" : "DENO_DEPLOY_TOKEN";
+    
+    this.deployToken = Deno.env.get(tokenKey) || "";
     if (!this.deployToken) {
       console.warn(
-        "DENO_DEPLOY_TOKEN not configured - sandbox functionality requires a deploy token from https://app.deno.com",
+        `${tokenKey} not configured - sandbox functionality requires a deploy token from https://app.deno.com`,
       );
     } else {
-      console.log("DENO_DEPLOY_TOKEN configured - sandbox functionality enabled");
+      console.log(`${tokenKey} configured - sandbox functionality enabled`);
     }
   }
 
@@ -72,8 +75,10 @@ class SandboxService {
 
   private validateDeployToken(visualizationId?: string): void {
     if (!this.deployToken) {
+      const isDevelopment = Deno.env.get("DENO_ENV") === "development" || !Deno.env.get("DENO_DEPLOYMENT_ID");
+      const tokenKey = isDevelopment ? "DENO_DEPLOY_DEV_TOKEN" : "DENO_DEPLOY_TOKEN";
       const error =
-        "DENO_DEPLOY_TOKEN is required for sandbox functionality. Get one from https://console.deno.com";
+        `${tokenKey} is required for sandbox functionality. Get one from https://console.deno.com`;
       if (visualizationId) {
         deploymentLogger.markFailed(visualizationId, error);
       }
@@ -91,7 +96,16 @@ class SandboxService {
       );
     }
 
-    return await Sandbox.create({ token: this.deployToken });
+    // In development, use localhost:8000 for the Deno Deploy service
+    const isDevelopment = Deno.env.get("DENO_ENV") === "development" || !Deno.env.get("DENO_DEPLOYMENT_ID");
+    const options: any = { token: this.deployToken };
+    
+    if (isDevelopment) {
+      // Use local Deno Deploy service
+      options.baseUrl = "http://localhost:8000";
+    }
+
+    return await Sandbox.create(options);
   }
 
   private async deployToSandbox(
