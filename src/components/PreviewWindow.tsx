@@ -6,12 +6,14 @@ import { AlertCircle, Code, Copy, Download, Eye, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast.ts";
 
 interface GeneratedCode {
+  sandboxUrl?: string;
+  sandboxId?: string;
+  visualizationId?: string;
+  // Legacy fields for local code display (not used in sandbox mode)
   html?: string;
   css?: string;
   javascript?: string;
   fullCode?: string;
-  sandboxId?: string;
-  visualizationId?: string;
 }
 
 interface DeploymentStatus {
@@ -254,17 +256,17 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
         </TabsList>
 
         <div className="flex-1 p-4">
-          {/* Preview content - display HTML via srcdoc */}
+          {/* Preview content - iframe the sandbox URL directly */}
           <div
             className={`h-full rounded-lg overflow-hidden border border-border/50 ${
               activeTab === "preview" ? "block" : "hidden"
             }`}
           >
-            {generatedCode?.html
+            {generatedCode?.sandboxUrl
               ? (
                 <iframe
                   className="w-full h-full"
-                  srcDoc={generatedCode.html}
+                  src={generatedCode.sandboxUrl}
                   sandbox="allow-scripts"
                   title="Generated Visualization"
                 />
@@ -295,15 +297,13 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
               : (
                 <div className="w-full h-full flex items-center justify-center bg-background">
                   <div className="text-center space-y-4">
-                    <div className="w-8 h-8 mx-auto rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
-                      <Code className="w-4 h-4 text-primary" />
+                    <div className="w-12 h-12 mx-auto rounded-full bg-muted flex items-center justify-center">
+                      <Eye className="w-6 h-6 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold">
-                        Waiting for visualization...
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Your visualization will appear here when ready
+                      <h3 className="text-lg font-semibold">Preview Window</h3>
+                      <p className="text-muted-foreground">
+                        Your visualization will appear here once generated
                       </p>
                     </div>
                   </div>
@@ -416,16 +416,29 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                         </>
                       )
                       : (
-                        <div className="bg-blue-100 dark:bg-blue-950/40 p-2 rounded col-span-2">
-                          <strong>Code Generation:</strong>{" "}
-                          Code is generated directly in the sandbox using your API key
+                        <div className="bg-muted/50 border-l-2 border-l-blue-500 p-2 rounded col-span-2">
+                          <strong className="text-foreground">Code Generation:</strong>{" "}
+                          <span className="text-muted-foreground">
+                            Code is generated directly in the sandbox using your API key
+                          </span>
                         </div>
                       )}
                     <div className="bg-muted/30 p-2 rounded">
                       <strong>Sandbox ID:</strong> {generatedCode.sandboxId || "N/A"}
                     </div>
-                    <div className="bg-muted/30 p-2 rounded">
-                      <strong>HTML Length:</strong> {generatedCode.html?.length || 0} chars
+                    <div className="bg-muted/30 p-2 rounded col-span-2 break-all">
+                      <strong>Sandbox URL:</strong> {generatedCode.sandboxUrl
+                        ? (
+                          <a
+                            href={generatedCode.sandboxUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-500 hover:underline"
+                          >
+                            {generatedCode.sandboxUrl}
+                          </a>
+                        )
+                        : "N/A"}
                     </div>
                   </div>
                 </div>
@@ -433,22 +446,21 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                 <div>
                   <h4 className="font-medium mb-2">🏖️ Sandbox Deployment</h4>
                   <div className="space-y-2 text-xs">
-                    <div className="bg-blue-100 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 p-2 rounded">
-                      <strong className="text-blue-900 dark:text-blue-100">Rendering Mode:</strong>
-                      {" "}
-                      <span className="text-blue-800 dark:text-blue-200">
+                    <div className="bg-muted/50 border-l-2 border-l-blue-500 p-2 rounded">
+                      <strong className="text-foreground">Rendering Mode:</strong>{" "}
+                      <span className="text-muted-foreground">
                         Deno Deploy Sandbox (Required)
                       </span>
                     </div>
-                    <div className="bg-blue-100 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 p-2 rounded">
-                      <strong className="text-blue-900 dark:text-blue-100">Security:</strong>{" "}
-                      <span className="text-blue-800 dark:text-blue-200">
+                    <div className="bg-muted/50 border-l-2 border-l-blue-500 p-2 rounded">
+                      <strong className="text-foreground">Security:</strong>{" "}
+                      <span className="text-muted-foreground">
                         Fully isolated execution environment
                       </span>
                     </div>
-                    <div className="bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-2 rounded">
-                      <strong className="text-slate-900 dark:text-slate-100">Status:</strong>{" "}
-                      <span className="text-slate-800 dark:text-slate-200">
+                    <div className="bg-muted/50 border-l-2 border-l-slate-500 p-2 rounded">
+                      <strong className="text-foreground">Status:</strong>{" "}
+                      <span className="text-muted-foreground">
                         {deploymentError || deploymentStatus?.status === "failed"
                           ? "❌ Failed"
                           : deploymentStatus?.status === "ready"
@@ -462,34 +474,29 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                           : "🔄 Initializing"}
                       </span>
                     </div>
-                    <div className="bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2 rounded">
-                      <strong className="text-amber-900 dark:text-amber-100">
-                        Rendering Mode:
-                      </strong>{" "}
-                      <span className="text-amber-800 dark:text-amber-200">
+                    <div className="bg-muted/50 border-l-2 border-l-amber-500 p-2 rounded">
+                      <strong className="text-foreground">Rendering Mode:</strong>{" "}
+                      <span className="text-muted-foreground">
                         srcdoc (HTML embedded directly)
                       </span>
                     </div>
-                    <div className="bg-green-100 dark:bg-green-950/40 border border-green-200 dark:border-green-800 p-2 rounded">
-                      <strong className="text-green-900 dark:text-green-100">Deployment:</strong>
-                      {" "}
-                      <span className="text-green-800 dark:text-green-200">
+                    <div className="bg-muted/50 border-l-2 border-l-green-500 p-2 rounded">
+                      <strong className="text-foreground">Deployment:</strong>{" "}
+                      <span className="text-muted-foreground">
                         All visualizations are deployed to live Deno Deploy sandboxes. No local
                         rendering.
                       </span>
                     </div>
                     {deploymentStatus?.events && deploymentStatus.events.length > 0 && (
-                      <div className="bg-slate-100 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 p-2 rounded">
-                        <strong className="text-slate-900 dark:text-slate-100">
-                          Recent Events:
-                        </strong>
+                      <div className="bg-muted/50 border-l-2 border-l-slate-500 p-2 rounded">
+                        <strong className="text-foreground">Recent Events:</strong>
                         <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
                           {deploymentStatus.events.slice(-5).map((event) => (
                             <div key={event.id} className="text-xs">
-                              <span className="font-mono text-slate-600 dark:text-slate-400">
+                              <span className="font-mono text-muted-foreground">
                                 {new Date(event.timestamp).toLocaleTimeString()}
                               </span>
-                              <span className="ml-2 text-slate-800 dark:text-slate-200">
+                              <span className="ml-2 text-muted-foreground">
                                 {event.message}
                               </span>
                             </div>

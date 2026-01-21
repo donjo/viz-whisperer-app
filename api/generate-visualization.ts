@@ -25,9 +25,9 @@ interface VisualizationRequest {
 }
 
 interface GeneratedCode {
-  html?: string;
-  sandboxId?: string;
-  visualizationId?: string;
+  sandboxUrl: string;
+  sandboxId: string;
+  visualizationId: string;
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -76,9 +76,9 @@ export default async function handler(req: Request): Promise<Response> {
       "Creating sandbox with user's API key (key is securely injected via secrets)",
     );
 
-    // Create the sandbox and wait for HTML generation
-    // The sandbox makes Anthropic API calls directly using the securely injected key
-    const sandboxPromise = sandboxService.createAndFetchVisualization(
+    // Create the sandbox - returns immediately with URL
+    // The sandbox serves a loading UI while the AI generates the visualization
+    const result = await sandboxService.createVisualization(
       {
         apiData: requestData.apiData,
         prompt: requestData.prompt,
@@ -88,24 +88,13 @@ export default async function handler(req: Request): Promise<Response> {
       visualizationId,
     );
 
-    // Add a timeout to prevent the request from hanging indefinitely
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
-        () => reject(new Error("Visualization generation timeout after 120 seconds")),
-        120000,
-      );
-    });
-
-    const result = await Promise.race([sandboxPromise, timeoutPromise]);
-
     const response: GeneratedCode = {
-      html: result.html,
+      sandboxUrl: result.url,
       sandboxId: result.id,
       visualizationId,
     };
 
-    console.log(`Generated visualization ${result.id}, HTML length: ${result.html.length}`);
-    deploymentLogger.markReady(visualizationId);
+    console.log(`Created sandbox ${result.id} at ${result.url}`);
 
     return Response.json(response);
   } catch (error) {

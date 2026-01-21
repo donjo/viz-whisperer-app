@@ -28,12 +28,14 @@ interface VisualizationRequest {
 }
 
 interface GeneratedCode {
+  sandboxUrl?: string;
+  sandboxId?: string;
+  visualizationId?: string;
+  // Legacy fields for local code (not used in sandbox mode)
   html?: string;
   css?: string;
   javascript?: string;
   fullCode?: string;
-  sandboxId?: string;
-  visualizationId?: string;
 }
 
 class AnthropicService {

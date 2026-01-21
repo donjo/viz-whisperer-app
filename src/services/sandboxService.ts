@@ -267,6 +267,7 @@ let generatedHtml: string = "";  // Initialize empty
 let generationError: string | null = null;
 
 // Loading page shown while AI is generating the visualization
+// Includes auto-refresh script that polls /status and reloads when ready
 function buildLoadingHtml(): string {
   return \`<!DOCTYPE html>
 <html lang="en">
@@ -305,15 +306,49 @@ function buildLoadingHtml(): string {
         font-size: 14px;
         margin-top: 10px;
       }
+      .elapsed {
+        color: #94a3b8;
+        font-size: 12px;
+        margin-top: 5px;
+      }
     </style>
 </head>
 <body>
     <div class="loader">
       <div class="spinner"></div>
       <h2>Generating Visualization</h2>
-      <p class="phase">Phase: \${generationPhase}</p>
+      <p class="phase" id="phase">Phase: \${generationPhase}</p>
       <p>Please wait while the AI creates your chart...</p>
+      <p class="elapsed" id="elapsed"></p>
     </div>
+    <script>
+      // Poll /status every 2 seconds and reload when ready
+      async function checkStatus() {
+        try {
+          const response = await fetch('/status');
+          const status = await response.json();
+
+          // Update phase display
+          document.getElementById('phase').textContent = 'Phase: ' + status.phase;
+
+          // Update elapsed time
+          const seconds = Math.round(status.elapsed / 1000);
+          document.getElementById('elapsed').textContent = seconds + 's elapsed';
+
+          // Reload page when ready (visualization will be served)
+          if (status.ready || status.phase === 'ready' || status.phase === 'error') {
+            window.location.reload();
+          }
+        } catch (e) {
+          console.error('Status check failed:', e);
+        }
+      }
+
+      // Start polling
+      setInterval(checkStatus, 2000);
+      // Also check immediately
+      checkStatus();
+    </script>
 </body>
 </html>\`;
 }
