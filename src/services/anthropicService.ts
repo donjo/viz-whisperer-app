@@ -19,7 +19,7 @@ interface VisualizationRequest {
     };
   };
   prompt: string;
-  apiKey: string; // User's Anthropic API key
+  apiKey?: string; // Optional: User's Anthropic API key (server uses stored key if not provided)
   currentCode?: {
     html: string;
     css: string;
@@ -55,20 +55,17 @@ class AnthropicService {
    * Generate a visualization by sending the request to the backend
    * The backend creates a sandbox that calls Anthropic API directly
    *
-   * @param request - The visualization request including user's API key
+   * @param request - The visualization request (apiKey optional if user has stored key)
    */
   async generateVisualization(request: VisualizationRequest): Promise<GeneratedCode> {
-    // Validate API key before making request
-    if (!request.apiKey || request.apiKey.trim() === "") {
-      throw new Error("API key is required. Please enter your Anthropic API key.");
-    }
-
     try {
       const response = await fetch(CONFIG.API.ENDPOINT, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        // Include credentials so session cookie is sent for auth
+        credentials: "include",
         body: JSON.stringify(request),
       });
 

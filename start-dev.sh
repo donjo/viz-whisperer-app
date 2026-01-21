@@ -8,7 +8,7 @@ echo ""
 echo "Press Ctrl+C to stop both servers"
 
 # Start API server in background
-deno run -A --env-file=.env.local --watch dev-server.ts --port=3000 &
+DENO_ENV=development deno run -A --unstable-kv --env-file=.env.local --watch dev-server.ts --port=3000 &
 API_PID=$!
 
 # Start Vite dev server in background  

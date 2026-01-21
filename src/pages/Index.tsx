@@ -1,161 +1,89 @@
-import { useState } from "react";
-import { ApiInput } from "@/components/ApiInput.tsx";
-import { PreviewWindow } from "@/components/PreviewWindow.tsx";
-import { VisualizationChat } from "@/components/VisualizationChat.tsx";
-import { CodeGenerator } from "@/utils/CodeGenerator.ts";
-import { BarChart3 } from "lucide-react";
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from "@/components/ui/resizable.tsx";
+/**
+ * Index Page
+ *
+ * The home page that switches between:
+ * - LandingPage: for logged out users (marketing/sign-in)
+ * - Dashboard: for logged in users (list of their visualizations)
+ */
 
-interface ApiData {
-  url: string;
-  data: any;
-  structure: {
-    fields: Array<{
-      name: string;
-      type: string;
-      sample: any;
-    }>;
-    totalRecords: number;
-  };
-}
+import { useEffect, useState } from "react";
+import { LandingPage } from "@/components/LandingPage.tsx";
+import { Dashboard } from "@/components/Dashboard.tsx";
+import { Header } from "@/components/Header.tsx";
+import { ApiKeyModal } from "@/components/ApiKeyModal.tsx";
 
-interface GeneratedCode {
-  html?: string;
-  css?: string;
-  javascript?: string;
-  fullCode?: string;
-  sandboxId?: string;
-  sandboxUrl?: string;
-  visualizationId?: string;
+interface UserInfo {
+  id: string;
+  email: string;
+  name: string;
+  avatarUrl?: string;
+  hasApiKey: boolean;
 }
 
 const Index = () => {
-  const [apiData, setApiData] = useState<ApiData | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generationError, setGenerationError] = useState<string | null>(null);
-  const [lastPrompt, setLastPrompt] = useState<string>("");
-  const [lastIsInitial, setLastIsInitial] = useState<boolean>(true);
-  // API key state - stored only in memory, not persisted
-  const [apiKey, setApiKey] = useState<string>("");
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
-  const handleDataFetched = (data: ApiData) => {
-    setApiData(data);
-    setGeneratedCode(null);
-  };
+  // Check authentication on mount
+  useEffect(() => {
+    checkAuth();
+  }, []);
 
-  const handleVisualizationRequest = async (prompt: string, isInitial: boolean) => {
-    if (!apiData) return;
-
-    // Validate API key
-    if (!apiKey.trim()) {
-      setGenerationError("API key is required. Please enter your Anthropic API key.");
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationError(null);
-    setLastPrompt(prompt);
-    setLastIsInitial(isInitial);
-
+  const checkAuth = async () => {
     try {
-      let code;
-      if (isInitial || !generatedCode) {
-        code = await CodeGenerator.generateVisualization(apiData, prompt, apiKey);
-      } else {
-        code = await CodeGenerator.iterateVisualization(generatedCode, prompt, apiData, apiKey);
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authenticated) {
+          setUser(data.user);
+        }
       }
-      setGeneratedCode(code);
     } catch (error) {
-      console.error("Failed to generate visualization:", error);
-      const errorMessage = error instanceof Error
-        ? error.message
-        : "Failed to generate visualization";
-      setGenerationError(errorMessage);
+      // Not authenticated or error - show landing page
+      console.error("Auth check failed:", error);
     } finally {
-      setIsGenerating(false);
+      setIsLoading(false);
     }
   };
 
-  const handleRetry = () => {
-    if (lastPrompt) {
-      handleVisualizationRequest(lastPrompt, lastIsInitial);
-    }
+  const handleKeyUpdated = () => {
+    // Refresh user info to get updated hasApiKey status
+    checkAuth();
   };
 
+  // Show loading state briefly while checking auth
+  if (isLoading) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Not logged in - show landing page
+  if (!user) {
+    return <LandingPage />;
+  }
+
+  // Logged in - show dashboard with header
   return (
-    <div className="h-screen bg-background flex flex-col">
-      {/* Header */}
-      <header className="flex-shrink-0 border-b border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <BarChart3 className="w-12 h-12 text-primary" />
-              <div>
-                <h1 className="text-2xl font-bold">Viz Whisperer</h1>
-                <p className="text-sm text-muted-foreground">
-                  Build data visualizations through natural language
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
-        <ResizablePanelGroup direction="horizontal" className="h-full">
-          {/* Left Panel - Data Input */}
-          <ResizablePanel
-            defaultSize={30}
-            minSize={20}
-            maxSize={50}
-            className="bg-card/30"
-          >
-            <div className="h-full overflow-y-auto p-4">
-              <ApiInput onDataFetched={handleDataFetched} />
-            </div>
-          </ResizablePanel>
-
-          <ResizableHandle withHandle className="bg-border/50 hover:bg-border transition-colors" />
-
-          {/* Right Panel - Preview + Chat */}
-          <ResizablePanel defaultSize={70} minSize={40}>
-            <ResizablePanelGroup direction="vertical" className="h-full">
-              {/* Preview Window (Top) */}
-              <ResizablePanel defaultSize={70} minSize={50}>
-                <PreviewWindow
-                  generatedCode={generatedCode}
-                  isLoading={isGenerating}
-                  error={generationError}
-                  onRetry={handleRetry}
-                />
-              </ResizablePanel>
-
-              <ResizableHandle
-                withHandle
-                className="bg-border/50 hover:bg-border transition-colors"
-              />
-
-              {/* Visualization Chat (Bottom) */}
-              <ResizablePanel defaultSize={30} minSize={15} maxSize={50} className="bg-card/20">
-                <VisualizationChat
-                  hasData={!!apiData}
-                  onVisualizationRequest={handleVisualizationRequest}
-                  isGenerating={isGenerating}
-                  generatedCode={generatedCode}
-                  apiKey={apiKey}
-                  onApiKeyChange={setApiKey}
-                />
-              </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header user={user} onOpenApiKeyModal={() => setShowApiKeyModal(true)} />
+      <main className="flex-1">
+        <Dashboard
+          onOpenApiKeyModal={() => setShowApiKeyModal(true)}
+          hasApiKey={user.hasApiKey}
+        />
       </main>
+
+      {/* API Key Modal */}
+      <ApiKeyModal
+        isOpen={showApiKeyModal}
+        onClose={() => setShowApiKeyModal(false)}
+        hasExistingKey={user.hasApiKey}
+        onKeyUpdated={handleKeyUpdated}
+      />
     </div>
   );
 };

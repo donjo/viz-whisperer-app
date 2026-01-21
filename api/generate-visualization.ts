@@ -1,6 +1,17 @@
 /// <reference lib="deno.ns" />
+/**
+ * Generate Visualization Endpoint
+ *
+ * POST /api/generate-visualization
+ *
+ * For authenticated users: API key is fetched from KV (encrypted storage)
+ * For unauthenticated users: API key must be provided in request body
+ */
+
 import { sandboxService } from "../src/services/sandboxService.ts";
 import { deploymentLogger } from "../src/services/deploymentLogger.ts";
+import { getCurrentUser } from "../src/lib/auth.ts";
+import { decrypt } from "../src/lib/encryption.ts";
 
 interface VisualizationRequest {
   apiData: {
@@ -16,7 +27,7 @@ interface VisualizationRequest {
     };
   };
   prompt: string;
-  apiKey: string; // User provides their own Anthropic API key
+  apiKey?: string; // Optional if user has stored key
   currentCode?: {
     html: string;
     css: string;
@@ -38,22 +49,17 @@ export default async function handler(req: Request): Promise<Response> {
   let visualizationId: string | undefined;
 
   try {
+    // Parse request body
     let requestData: VisualizationRequest;
     try {
       requestData = await req.json();
-    } catch (parseError) {
+    } catch {
       return Response.json({
         error: "Invalid JSON in request body",
       }, { status: 400 });
     }
 
     // Validate required fields
-    if (!requestData.apiKey) {
-      return Response.json({
-        error: "API key is required. Please enter your Anthropic API key.",
-      }, { status: 400 });
-    }
-
     if (!requestData.apiData) {
       return Response.json({
         error: "API data is required",
@@ -66,6 +72,43 @@ export default async function handler(req: Request): Promise<Response> {
       }, { status: 400 });
     }
 
+    // Determine the API key to use
+    let apiKey = requestData.apiKey;
+
+    // If no API key in request, try to get it from the authenticated user
+    if (!apiKey) {
+      const user = await getCurrentUser(req);
+
+      if (user && user.encryptedApiKey) {
+        // Decrypt the stored API key
+        try {
+          apiKey = await decrypt(user.encryptedApiKey);
+        } catch (decryptError) {
+          console.error("Failed to decrypt API key:", decryptError);
+          return Response.json({
+            error: "Failed to decrypt stored API key. Please re-save your API key in settings.",
+          }, { status: 500 });
+        }
+      } else if (user && !user.encryptedApiKey) {
+        // User is authenticated but hasn't set an API key
+        return Response.json({
+          error: "No API key configured. Please set your Anthropic API key in settings.",
+        }, { status: 400 });
+      } else {
+        // Not authenticated and no API key provided
+        return Response.json({
+          error: "API key is required. Please sign in or provide an API key.",
+        }, { status: 401 });
+      }
+    }
+
+    // Final validation that we have an API key
+    if (!apiKey || apiKey.trim() === "") {
+      return Response.json({
+        error: "API key is required.",
+      }, { status: 400 });
+    }
+
     // Start deployment logging
     visualizationId = crypto.randomUUID();
     deploymentLogger.startDeployment(visualizationId);
@@ -73,7 +116,7 @@ export default async function handler(req: Request): Promise<Response> {
     deploymentLogger.logEvent(
       visualizationId,
       "generation",
-      "Creating sandbox with user's API key (key is securely injected via secrets)",
+      "Creating sandbox with API key (key is securely injected via secrets)",
     );
 
     // Create the sandbox - returns immediately with URL
@@ -84,7 +127,7 @@ export default async function handler(req: Request): Promise<Response> {
         prompt: requestData.prompt,
         currentCode: requestData.currentCode,
       },
-      requestData.apiKey, // User's API key - injected securely via sandbox secrets
+      apiKey,
       visualizationId,
     );
 

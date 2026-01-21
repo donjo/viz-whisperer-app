@@ -19,8 +19,10 @@ interface VisualizationChatProps {
   onVisualizationRequest: (prompt: string, isInitial: boolean) => void;
   isGenerating: boolean;
   generatedCode: any;
-  apiKey: string;
-  onApiKeyChange: (key: string) => void;
+  // Optional: for unauthenticated users who enter API key in the UI
+  // When omitted, assumes API key is stored server-side
+  apiKey?: string;
+  onApiKeyChange?: (key: string) => void;
 }
 
 export const VisualizationChat = ({
@@ -85,7 +87,8 @@ export const VisualizationChat = ({
       return;
     }
 
-    if (!apiKey.trim()) {
+    // Only validate API key if we're using client-side key entry
+    if (apiKey !== undefined && !apiKey.trim()) {
       toast({
         title: "API Key Required",
         description: "Please enter your Anthropic API key to generate visualizations",
@@ -253,47 +256,50 @@ export const VisualizationChat = ({
 
       {/* Input Section */}
       <div className="border-t border-border/50 bg-card/10 p-3 flex-shrink-0 space-y-2">
-        {/* API Key Input */}
-        <div className="flex gap-2 items-center">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-[70px]">
-            <Key className="w-3 h-3" />
-            <span>API Key</span>
+        {/* API Key Input - only shown when using client-side key entry */}
+        {apiKey !== undefined && onApiKeyChange && (
+          <div className="flex gap-2 items-center">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-[70px]">
+              <Key className="w-3 h-3" />
+              <span>API Key</span>
+            </div>
+            <div className="flex-1 relative">
+              <Input
+                type={showApiKey ? "text" : "password"}
+                placeholder="sk-ant-..."
+                value={apiKey}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  onApiKeyChange(e.target.value)}
+                className={`pr-8 text-sm h-8 font-mono ${
+                  apiKey
+                    ? "border-green-500/50 focus-visible:ring-green-500/30"
+                    : "border-amber-500/50 focus-visible:ring-amber-500/30"
+                }`}
+                disabled={isGenerating}
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            {apiKey
+              ? (
+                <span className="text-xs text-green-500 flex items-center gap-1 min-w-[50px]">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+                  Set
+                </span>
+              )
+              : (
+                <span className="text-xs text-amber-500 flex items-center gap-1 min-w-[50px]">
+                  <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
+                  Required
+                </span>
+              )}
           </div>
-          <div className="flex-1 relative">
-            <Input
-              type={showApiKey ? "text" : "password"}
-              placeholder="sk-ant-..."
-              value={apiKey}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onApiKeyChange(e.target.value)}
-              className={`pr-8 text-sm h-8 font-mono ${
-                apiKey
-                  ? "border-green-500/50 focus-visible:ring-green-500/30"
-                  : "border-amber-500/50 focus-visible:ring-amber-500/30"
-              }`}
-              disabled={isGenerating}
-            />
-            <button
-              type="button"
-              onClick={() => setShowApiKey(!showApiKey)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          {apiKey
-            ? (
-              <span className="text-xs text-green-500 flex items-center gap-1 min-w-[50px]">
-                <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
-                Set
-              </span>
-            )
-            : (
-              <span className="text-xs text-amber-500 flex items-center gap-1 min-w-[50px]">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                Required
-              </span>
-            )}
-        </div>
+        )}
 
         {/* Prompt Input */}
         <div className="flex gap-2 items-stretch">
@@ -309,7 +315,8 @@ export const VisualizationChat = ({
           />
           <Button
             onClick={handleSendPrompt}
-            disabled={isGenerating || !currentPrompt.trim() || !apiKey.trim()}
+            disabled={isGenerating || !currentPrompt.trim() ||
+              (apiKey !== undefined && !apiKey.trim())}
             variant="secondary"
             className="px-6 self-stretch"
           >
@@ -338,10 +345,12 @@ export const VisualizationChat = ({
           </Button>
         </div>
 
-        {/* Info text */}
-        <p className="text-[10px] text-muted-foreground text-center">
-          Your API key is used directly in a secure sandbox and is never stored on our servers.
-        </p>
+        {/* Info text - only shown when using client-side key entry */}
+        {apiKey !== undefined && (
+          <p className="text-[10px] text-muted-foreground text-center">
+            Your API key is used directly in a secure sandbox and is never stored on our servers.
+          </p>
+        )}
       </div>
     </div>
   );

@@ -29,20 +29,13 @@ export class CodeGenerator {
    *
    * @param apiData - The data to visualize
    * @param prompt - User's visualization request
-   * @param apiKey - User's Anthropic API key
+   * @param apiKey - Optional: User's Anthropic API key (if not provided, server uses stored key)
    */
   static async generateVisualization(
     apiData: ApiData,
     prompt: string,
-    apiKey: string,
+    apiKey?: string,
   ): Promise<GeneratedCode> {
-    // Validate API key
-    if (!apiKey || apiKey.trim() === "") {
-      throw new Error(
-        "API key is required. Please enter your Anthropic API key to generate visualizations.",
-      );
-    }
-
     try {
       return await anthropicService.generateVisualization({
         apiData,
@@ -61,21 +54,14 @@ export class CodeGenerator {
    * @param currentCode - The current visualization code
    * @param iterationPrompt - User's modification request
    * @param apiData - The original data
-   * @param apiKey - User's Anthropic API key
+   * @param apiKey - Optional: User's Anthropic API key (if not provided, server uses stored key)
    */
   static async iterateVisualization(
     currentCode: GeneratedCode,
     iterationPrompt: string,
     apiData: ApiData,
-    apiKey: string,
+    apiKey?: string,
   ): Promise<GeneratedCode> {
-    // Validate API key
-    if (!apiKey || apiKey.trim() === "") {
-      throw new Error(
-        "API key is required. Please enter your Anthropic API key to generate visualizations.",
-      );
-    }
-
     try {
       return await anthropicService.generateVisualization({
         apiData,
