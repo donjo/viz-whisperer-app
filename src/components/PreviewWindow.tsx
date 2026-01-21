@@ -260,25 +260,32 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
               activeTab === "preview" ? "block" : "hidden"
             }`}
           >
-            {generatedCode?.sandboxUrl ? (
-              <iframe
-                className="w-full h-full"
-                src={generatedCode.sandboxUrl}
-                sandbox="allow-scripts allow-same-origin"
-                title="Sandbox Deployed Visualization"
-              />
-            ) : deploymentError || deploymentStatus?.status === "failed"
+            {generatedCode?.sandboxUrl
+              ? (
+                <iframe
+                  className="w-full h-full"
+                  src={generatedCode.sandboxUrl}
+                  sandbox="allow-scripts allow-same-origin"
+                  title="Sandbox Deployed Visualization"
+                />
+              )
+              : deploymentError ||
+                  deploymentStatus?.status === "failed" ||
+                  (deploymentStatus?.status === "ready" && !deploymentStatus?.sandboxUrl)
               ? (
                 <div className="w-full h-full flex items-center justify-center bg-background">
                   <div className="text-center space-y-4">
                     <AlertCircle className="w-8 h-8 mx-auto text-destructive" />
                     <div>
-                      <p className="text-sm font-medium text-destructive">Deployment Failed</p>
+                      <p className="text-sm font-medium text-destructive">
+                        Sandbox Deployment Failed
+                      </p>
                       <p className="text-xs text-muted-foreground">
-                        {deploymentError || deploymentStatus?.error}
+                        {deploymentError || deploymentStatus?.error ||
+                          "Code generated successfully but sandbox deployment failed"}
                       </p>
                       <p className="text-xs text-muted-foreground mt-2">
-                        Visualization must be deployed to sandbox to view
+                        Check your DENO_DEPLOY_DEV_TOKEN in .env.local
                       </p>
                       {onRetry && (
                         <Button onClick={onRetry} variant="outline" size="sm" className="mt-4">

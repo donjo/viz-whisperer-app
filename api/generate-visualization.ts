@@ -35,32 +35,40 @@ interface GeneratedCode {
 }
 
 export default async function handler(req: Request): Promise<Response> {
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+  if (req.method !== "POST") {
+    return Response.json({ error: "Method not allowed" }, { status: 405 });
   }
 
   let visualizationId: string | undefined;
-  
+
   try {
-    const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-    
+    const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+
     if (!apiKey) {
       return Response.json({
-        error: 'Anthropic API key not configured on server'
+        error: "Anthropic API key not configured on server",
       }, { status: 500 });
     }
 
-    const requestData: VisualizationRequest = await req.json();
-    
+    let requestData: VisualizationRequest;
+    try {
+      requestData = await req.json();
+    } catch (parseError) {
+      return Response.json({
+        error: "Invalid JSON in request body",
+      }, { status: 400 });
+    }
+
     // Start deployment logging
     visualizationId = crypto.randomUUID();
     const deploymentLog = deploymentLogger.startDeployment(visualizationId);
-    
+
     const client = new Anthropic({
       apiKey: apiKey,
     });
 
-    const systemPrompt = `Generate a simple HTML/CSS/JavaScript chart visualization. Return ONLY valid JSON:
+    const systemPrompt =
+      `Generate a simple HTML/CSS/JavaScript chart visualization. Return ONLY valid JSON:
 
 {
   "html": "<div id='chart'></div>",
@@ -89,112 +97,138 @@ Create a complete working chart using only native browser APIs. Draw bars, axes,
 
     const userPrompt = buildUserPrompt(requestData);
 
-    deploymentLogger.logEvent(visualizationId, 'generation', 'Sending request to AI for visualization code');
+    deploymentLogger.logEvent(
+      visualizationId,
+      "generation",
+      "Sending request to AI for visualization code",
+    );
 
     const response = await client.messages.create({
-      model: Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-4-20250514',
+      model: Deno.env.get("ANTHROPIC_MODEL") || "claude-sonnet-4-5-20250929",
       max_tokens: 16000,
       temperature: 0.3,
       system: systemPrompt,
       messages: [
         {
-          role: 'user',
+          role: "user",
           content: userPrompt,
         },
       ],
     });
 
     const content = response.content[0];
-    if (content.type === 'text') {
+    if (content.type === "text") {
       const parsed = parseResponse(content.text);
       const validated = validateAndFixCode(parsed, requestData);
-      
-      deploymentLogger.logEvent(visualizationId, 'generation', 'AI generation complete, preparing deployment');
-      
+
+      deploymentLogger.logEvent(
+        visualizationId,
+        "generation",
+        "AI generation complete, preparing deployment",
+      );
+
       // Create the result with traditional fullCode for backwards compatibility
       const result: GeneratedCode = {
         ...validated,
         fullCode: combineCode(validated.html, validated.css, validated.javascript),
         visualizationId, // Add the ID so the client can track deployment
       };
-      
+
       // Create a sandbox for the visualization (optional - fallback if it fails)
       try {
         // Add a timeout to prevent sandbox creation from hanging indefinitely
         const sandboxPromise = sandboxService.createVisualization({
           html: validated.html,
           css: validated.css,
-          javascript: validated.javascript
+          javascript: validated.javascript,
         }, visualizationId);
-        
+
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Sandbox creation timeout after 5 seconds')), 5000);
+          setTimeout(() => reject(new Error("Sandbox creation timeout after 5 seconds")), 5000);
         });
-        
-        const sandbox = await Promise.race([sandboxPromise, timeoutPromise]) as { id: string; url: string };
-        
+
+        const sandbox = await Promise.race([sandboxPromise, timeoutPromise]) as {
+          id: string;
+          url: string;
+        };
+
         result.sandboxId = sandbox.id;
         result.sandboxUrl = sandbox.url;
         console.log(`Created sandbox ${sandbox.id} for visualization at ${sandbox.url}`);
         deploymentLogger.markReady(visualizationId);
       } catch (sandboxError) {
-        console.warn('Sandbox creation failed or timed out, continuing without sandbox:', sandboxError);
+        console.warn(
+          "Sandbox creation failed or timed out, continuing without sandbox:",
+          sandboxError,
+        );
         // Mark as ready even if sandbox fails since we have the visualization code
         deploymentLogger.markReady(visualizationId);
         // Still return the visualization code even if sandbox fails
       }
-      
+
       return Response.json(result);
     }
 
     return Response.json({
-      error: 'Unexpected response format from AI'
+      error: "Unexpected response format from AI",
     }, { status: 500 });
-
   } catch (error) {
-    console.error('Error generating visualization:', error);
-    
+    console.error("Error generating visualization:", error);
+
     // Try to log the error if we have a visualization ID
     try {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate visualization';
+      const errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to generate visualization";
       // Note: visualizationId might not be available if error occurred early
-      if (typeof visualizationId !== 'undefined') {
+      if (typeof visualizationId !== "undefined") {
         deploymentLogger.markFailed(visualizationId, errorMessage, error);
       }
     } catch (logError) {
-      console.error('Failed to log deployment error:', logError);
+      console.error("Failed to log deployment error:", logError);
     }
-    
+
     return Response.json({
-      error: 'Failed to generate visualization'
+      error: "Failed to generate visualization",
     }, { status: 500 });
   }
 }
 
 // Helper function to identify date/time fields in the data structure
-function identifyDateFields(fields: Array<{name: string, type: string, sample: any}>): Array<{name: string, type: string, sample: any}> {
-  return fields.filter(field => {
+function identifyDateFields(
+  fields: Array<{ name: string; type: string; sample: any }>,
+): Array<{ name: string; type: string; sample: any }> {
+  return fields.filter((field) => {
     const fieldName = field.name.toLowerCase();
     const sampleValue = String(field.sample);
-    
+
     // Check if field name suggests it's a date
     const dateNamePatterns = [
-      'date', 'time', 'created', 'updated', 'modified', 'timestamp', 
-      'datetime', 'start', 'end', 'published', 'scheduled'
+      "date",
+      "time",
+      "created",
+      "updated",
+      "modified",
+      "timestamp",
+      "datetime",
+      "start",
+      "end",
+      "published",
+      "scheduled",
     ];
-    
-    const hasDateName = dateNamePatterns.some(pattern => fieldName.includes(pattern));
-    
+
+    const hasDateName = dateNamePatterns.some((pattern) => fieldName.includes(pattern));
+
     // Check if sample value looks like a date
     const datePatterns = [
       /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
       /^\d{2}\/\d{2}\/\d{4}/, // MM/DD/YYYY
       /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
-      /^\d{10,13}$/ // Unix timestamp
+      /^\d{10,13}$/, // Unix timestamp
     ];
-    
-    const hasDateFormat = datePatterns.some(pattern => pattern.test(sampleValue));
-    
+
+    const hasDateFormat = datePatterns.some((pattern) => pattern.test(sampleValue));
+
     return hasDateName || hasDateFormat;
   });
 }
@@ -206,68 +240,107 @@ function analyzeTimeRequest(prompt: string): {
   suggestedInstructions: string;
 } {
   const timeKeywords = [
-    'last', 'past', 'recent', 'days', 'weeks', 'months', 'years',
-    'since', 'before', 'after', 'between', 'from', 'to', 'until',
-    'january', 'february', 'march', 'april', 'may', 'june',
-    'july', 'august', 'september', 'october', 'november', 'december',
-    'q1', 'q2', 'q3', 'q4', 'quarter', 'today', 'yesterday', 'tomorrow',
-    '2023', '2024', '2025', 'this year', 'last year', 'ytd'
+    "last",
+    "past",
+    "recent",
+    "days",
+    "weeks",
+    "months",
+    "years",
+    "since",
+    "before",
+    "after",
+    "between",
+    "from",
+    "to",
+    "until",
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "quarter",
+    "today",
+    "yesterday",
+    "tomorrow",
+    "2023",
+    "2024",
+    "2025",
+    "this year",
+    "last year",
+    "ytd",
   ];
-  
-  const foundKeywords = timeKeywords.filter(keyword => 
+
+  const foundKeywords = timeKeywords.filter((keyword) =>
     prompt.toLowerCase().includes(keyword.toLowerCase())
   );
-  
+
   const hasTimeRequest = foundKeywords.length > 0;
-  
-  let suggestedInstructions = '';
+
+  let suggestedInstructions = "";
   if (hasTimeRequest) {
     suggestedInstructions = `
 CRITICAL FILTERING REQUIREMENTS:
-- The user requested time-based filtering with terms: ${foundKeywords.join(', ')}
+- The user requested time-based filtering with terms: ${foundKeywords.join(", ")}
 - You MUST implement proper date filtering in your JavaScript code
 - Only include data that matches the specified time period
 - Do NOT show all data - filter it according to the user's time requirements
 - If specific dates aren't clear, use reasonable defaults based on the context`;
   }
-  
+
   return {
     hasTimeRequest,
     timeKeywords: foundKeywords,
-    suggestedInstructions
+    suggestedInstructions,
   };
 }
 
 // Helper function to get data range information
-function getDataRangeInfo(data: any[], dateFields: Array<{name: string, type: string, sample: any}>): string {
+function getDataRangeInfo(
+  data: any[],
+  dateFields: Array<{ name: string; type: string; sample: any }>,
+): string {
   if (dateFields.length === 0 || data.length === 0) {
-    return '';
+    return "";
   }
-  
+
   const primaryDateField = dateFields[0];
   const dates = data
-    .map(record => record[primaryDateField.name])
-    .filter(date => date != null)
-    .map(date => new Date(date))
-    .filter(date => !isNaN(date.getTime()));
-  
+    .map((record) => record[primaryDateField.name])
+    .filter((date) => date != null)
+    .map((date) => new Date(date))
+    .filter((date) => !isNaN(date.getTime()));
+
   if (dates.length === 0) {
-    return '';
+    return "";
   }
-  
-  const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
-  const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-  
+
+  const minDate = new Date(Math.min(...dates.map((d) => d.getTime())));
+  const maxDate = new Date(Math.max(...dates.map((d) => d.getTime())));
+
   return `
 Data Date Range Information:
 - Primary date field: "${primaryDateField.name}"
-- Data spans from: ${minDate.toISOString().split('T')[0]} to ${maxDate.toISOString().split('T')[0]}
-- Total time span: ${Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24))} days`;
+- Data spans from: ${minDate.toISOString().split("T")[0]} to ${maxDate.toISOString().split("T")[0]}
+- Total time span: ${
+    Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24))
+  } days`;
 }
 
 function buildUserPrompt(request: VisualizationRequest): string {
   const { apiData, prompt, currentCode } = request;
-  
+
   // Analyze the data structure for date fields
   const dateFields = identifyDateFields(apiData.structure.fields);
   const timeAnalysis = analyzeTimeRequest(prompt);
@@ -290,7 +363,10 @@ function buildUserPrompt(request: VisualizationRequest): string {
     userPrompt += `
   
   Detected Date/Time Fields:
-  ${dateFields.map(field => `- ${field.name} (${field.type}): ${JSON.stringify(field.sample)}`).join('\n')}`;
+  ${
+      dateFields.map((field) => `- ${field.name} (${field.type}): ${JSON.stringify(field.sample)}`)
+        .join("\n")
+    }`;
   }
 
   // Add data range information
@@ -398,9 +474,10 @@ function parseResponse(text: string): Omit<GeneratedCode, "fullCode"> {
 
     if (html || css || javascript) {
       const finalHtml = html || '<div id="root"></div>';
-      const finalCSS = css || "body { background: #0f0f23; color: #e2e8f0; } #root { padding: 20px; }";
-      const finalJS = javascript || '';
-      
+      const finalCSS = css ||
+        "body { background: #0f0f23; color: #e2e8f0; } #root { padding: 20px; }";
+      const finalJS = javascript || "";
+
       return {
         html: finalHtml,
         css: finalCSS,
@@ -410,8 +487,8 @@ function parseResponse(text: string): Omit<GeneratedCode, "fullCode"> {
 
     return generateFallbackChart();
   } catch (error) {
-    console.error('Error parsing AI response:', error);
-    throw new Error('Failed to parse AI response. Please try again with a clearer prompt.');
+    console.error("Error parsing AI response:", error);
+    throw new Error("Failed to parse AI response. Please try again with a clearer prompt.");
   }
 }
 
@@ -439,7 +516,8 @@ function validateAndFixCode(
 function generateFallbackChart(): Omit<GeneratedCode, "fullCode"> {
   return {
     html: '<div id="chart"><canvas id="chartCanvas"></canvas></div>',
-    css: 'body{background:#0f0f23;color:#e2e8f0;margin:0;font-family:Arial}#chart{width:100%;height:100vh;padding:20px;display:flex;justify-content:center;align-items:center}canvas{max-width:100%;max-height:100%;background:rgba(30,30,60,0.3);border-radius:8px}',
+    css:
+      "body{background:#0f0f23;color:#e2e8f0;margin:0;font-family:Arial}#chart{width:100%;height:100vh;padding:20px;display:flex;justify-content:center;align-items:center}canvas{max-width:100%;max-height:100%;background:rgba(30,30,60,0.3);border-radius:8px}",
     javascript: `
 const canvas = document.getElementById('chartCanvas');
 const ctx = canvas.getContext('2d');
@@ -503,7 +581,7 @@ const drawChart = () => {
 
 resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
-`
+`,
   };
 }
 

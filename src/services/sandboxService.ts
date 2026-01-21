@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { type JsRuntime, Sandbox } from "@deno/sandbox";
+import { type DenoProcess, Sandbox } from "@deno/sandbox";
 import { deploymentLogger } from "./deploymentLogger.ts";
 
 // Configuration constants
@@ -17,7 +17,7 @@ const CONFIG = {
 interface SandboxVisualization {
   id: string;
   sandbox: Sandbox;
-  runtime: JsRuntime;
+  runtime: DenoProcess;
   url: string;
   createdAt: Date;
 }
@@ -34,9 +34,10 @@ class SandboxService {
 
   constructor() {
     // In development, use DENO_DEPLOY_DEV_TOKEN, otherwise use DENO_DEPLOY_TOKEN
-    const isDevelopment = Deno.env.get("DENO_ENV") === "development" || !Deno.env.get("DENO_DEPLOYMENT_ID");
+    const isDevelopment = Deno.env.get("DENO_ENV") === "development" ||
+      !Deno.env.get("DENO_DEPLOYMENT_ID");
     const tokenKey = isDevelopment ? "DENO_DEPLOY_DEV_TOKEN" : "DENO_DEPLOY_TOKEN";
-    
+
     this.deployToken = Deno.env.get(tokenKey) || "";
     if (!this.deployToken) {
       console.warn(
@@ -75,7 +76,8 @@ class SandboxService {
 
   private validateDeployToken(visualizationId?: string): void {
     if (!this.deployToken) {
-      const isDevelopment = Deno.env.get("DENO_ENV") === "development" || !Deno.env.get("DENO_DEPLOYMENT_ID");
+      const isDevelopment = Deno.env.get("DENO_ENV") === "development" ||
+        !Deno.env.get("DENO_DEPLOYMENT_ID");
       const tokenKey = isDevelopment ? "DENO_DEPLOY_DEV_TOKEN" : "DENO_DEPLOY_TOKEN";
       const error =
         `${tokenKey} is required for sandbox functionality. Get one from https://console.deno.com`;
@@ -97,9 +99,10 @@ class SandboxService {
     }
 
     // In development, use localhost:8000 for the Deno Deploy service
-    const isDevelopment = Deno.env.get("DENO_ENV") === "development" || !Deno.env.get("DENO_DEPLOYMENT_ID");
+    const isDevelopment = Deno.env.get("DENO_ENV") === "development" ||
+      !Deno.env.get("DENO_DEPLOYMENT_ID");
     const options: any = { token: this.deployToken };
-    
+
     if (isDevelopment) {
       // Use local Deno Deploy service
       options.baseUrl = "http://localhost:8000";
@@ -113,7 +116,7 @@ class SandboxService {
     generatedCode: GeneratedCode,
     sandboxId: string,
     visualizationId?: string,
-  ): Promise<JsRuntime> {
+  ): Promise<DenoProcess> {
     if (visualizationId) {
       deploymentLogger.logEvent(
         visualizationId,
@@ -124,8 +127,8 @@ class SandboxService {
 
     const serverCode = this.generateServerCode(generatedCode);
 
-    // Create a JavaScript runtime with the server code
-    const runtime = await sandbox.createJsRuntime({
+    // Create a JavaScript runtime with the server code using the new API
+    const runtime = await sandbox.deno.run({
       code: serverCode,
     });
 
@@ -140,7 +143,7 @@ class SandboxService {
     // Skip waiting for httpReady since it seems to hang but sandboxes work anyway
     // The sandboxes are actually starting on Deno Deploy according to the dashboard
     // const isReady = await runtime.httpReady;
-    
+
     // if (!isReady) {
     //   const error = "Sandbox runtime failed to start HTTP server";
     //   console.error("❌", error);
@@ -155,7 +158,7 @@ class SandboxService {
 
   private async exposeAndRegisterSandbox(
     sandbox: Sandbox,
-    runtime: JsRuntime,
+    runtime: DenoProcess,
     id: string,
     visualizationId?: string,
   ): Promise<string> {
@@ -163,8 +166,8 @@ class SandboxService {
       deploymentLogger.logEvent(visualizationId, "deployment", "Exposing HTTP endpoint");
     }
 
-    // Get a real public URL by exposing the runtime
-    const url = await sandbox.exposeHttp(runtime);
+    // Get a real public URL by exposing the runtime's process
+    const url = await sandbox.exposeHttp({ pid: runtime.pid });
 
     const visualization: SandboxVisualization = {
       id,

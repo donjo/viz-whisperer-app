@@ -5,7 +5,7 @@ const CONFIG = {
   API: {
     MAX_TOKENS: 16000,
     TEMPERATURE: 0.3,
-    DEFAULT_MODEL: "claude-sonnet-4-20250514",
+    DEFAULT_MODEL: "claude-sonnet-4-5-20250929",
   },
   VALIDATION: {
     MIN_HTML_LENGTH: 50,
@@ -77,9 +77,26 @@ class AnthropicService {
           body: JSON.stringify(request),
         });
 
+        const contentType = response.headers.get("content-type") || "";
+        const isJsonResponse = contentType.includes("application/json");
+
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.error || "Failed to generate visualization");
+          if (isJsonResponse) {
+            const error = await response.json();
+            throw new Error(error.error || "Failed to generate visualization");
+          } else {
+            const errorText = await response.text();
+            throw new Error(`Server error (${response.status}): ${errorText}`);
+          }
+        }
+
+        if (!isJsonResponse) {
+          const responseText = await response.text();
+          throw new Error(
+            `Expected JSON response but got ${contentType || "unknown content type"}: ${
+              responseText.slice(0, 100)
+            }`,
+          );
         }
 
         const result: GeneratedCode = await response.json();
