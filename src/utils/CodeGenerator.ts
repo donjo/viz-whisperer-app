@@ -14,24 +14,32 @@ interface ApiData {
 }
 
 interface GeneratedCode {
-  html: string;
-  css: string;
-  javascript: string;
-  fullCode: string;
+  html?: string;
+  css?: string;
+  javascript?: string;
+  fullCode?: string;
   sandboxId?: string;
   sandboxUrl?: string;
   visualizationId?: string;
 }
 
 export class CodeGenerator {
+  /**
+   * Generate a new visualization from API data
+   *
+   * @param apiData - The data to visualize
+   * @param prompt - User's visualization request
+   * @param apiKey - User's Anthropic API key
+   */
   static async generateVisualization(
     apiData: ApiData,
     prompt: string,
+    apiKey: string,
   ): Promise<GeneratedCode> {
-    // Only use AI service - no fallback mock
-    if (!anthropicService.isConfigured()) {
+    // Validate API key
+    if (!apiKey || apiKey.trim() === "") {
       throw new Error(
-        "Anthropic API key not configured. Please add VITE_ANTHROPIC_API_KEY to your .env.local file to generate visualizations.",
+        "API key is required. Please enter your Anthropic API key to generate visualizations.",
       );
     }
 
@@ -39,22 +47,32 @@ export class CodeGenerator {
       return await anthropicService.generateVisualization({
         apiData,
         prompt,
+        apiKey,
       });
     } catch (error) {
       console.error("AI generation failed:", error);
-      throw error; // Re-throw to let the UI handle the error
+      throw error;
     }
   }
 
+  /**
+   * Iterate on an existing visualization based on user feedback
+   *
+   * @param currentCode - The current visualization code
+   * @param iterationPrompt - User's modification request
+   * @param apiData - The original data
+   * @param apiKey - User's Anthropic API key
+   */
   static async iterateVisualization(
     currentCode: GeneratedCode,
     iterationPrompt: string,
     apiData: ApiData,
+    apiKey: string,
   ): Promise<GeneratedCode> {
-    // Only use AI service - no fallback mock
-    if (!anthropicService.isConfigured()) {
+    // Validate API key
+    if (!apiKey || apiKey.trim() === "") {
       throw new Error(
-        "Anthropic API key not configured. Please add VITE_ANTHROPIC_API_KEY to your .env.local file to generate visualizations.",
+        "API key is required. Please enter your Anthropic API key to generate visualizations.",
       );
     }
 
@@ -62,15 +80,18 @@ export class CodeGenerator {
       return await anthropicService.generateVisualization({
         apiData,
         prompt: iterationPrompt,
-        currentCode: {
-          html: currentCode.html,
-          css: currentCode.css,
-          javascript: currentCode.javascript,
-        },
+        apiKey,
+        currentCode: currentCode.html && currentCode.css && currentCode.javascript
+          ? {
+            html: currentCode.html,
+            css: currentCode.css,
+            javascript: currentCode.javascript,
+          }
+          : undefined,
       });
     } catch (error) {
       console.error("AI iteration failed:", error);
-      throw error; // Re-throw to let the UI handle the error
+      throw error;
     }
   }
 }

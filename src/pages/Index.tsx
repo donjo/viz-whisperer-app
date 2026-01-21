@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ApiInput } from "@/components/ApiInput.tsx";
 import { PreviewWindow } from "@/components/PreviewWindow.tsx";
 import { VisualizationChat } from "@/components/VisualizationChat.tsx";
 import { CodeGenerator } from "@/utils/CodeGenerator.ts";
 import { BarChart3 } from "lucide-react";
-import { anthropicService } from "@/services/anthropicService.ts";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable.tsx";
+
 interface ApiData {
   url: string;
   data: any;
@@ -22,27 +22,27 @@ interface ApiData {
     totalRecords: number;
   };
 }
+
 interface GeneratedCode {
-  html: string;
-  css: string;
-  javascript: string;
-  fullCode: string;
+  html?: string;
+  css?: string;
+  javascript?: string;
+  fullCode?: string;
   sandboxId?: string;
   sandboxUrl?: string;
   visualizationId?: string;
 }
+
 const Index = () => {
   const [apiData, setApiData] = useState<ApiData | null>(null);
   const [generatedCode, setGeneratedCode] = useState<GeneratedCode | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isAIConfigured, setIsAIConfigured] = useState(false);
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [lastPrompt, setLastPrompt] = useState<string>("");
   const [lastIsInitial, setLastIsInitial] = useState<boolean>(true);
+  // API key state - stored only in memory, not persisted
+  const [apiKey, setApiKey] = useState<string>("");
 
-  useEffect(() => {
-    setIsAIConfigured(anthropicService.isConfigured());
-  }, []);
   const handleDataFetched = (data: ApiData) => {
     setApiData(data);
     setGeneratedCode(null);
@@ -50,17 +50,24 @@ const Index = () => {
 
   const handleVisualizationRequest = async (prompt: string, isInitial: boolean) => {
     if (!apiData) return;
+
+    // Validate API key
+    if (!apiKey.trim()) {
+      setGenerationError("API key is required. Please enter your Anthropic API key.");
+      return;
+    }
+
     setIsGenerating(true);
-    setGenerationError(null); // Clear any previous errors
-    setLastPrompt(prompt); // Save for retry functionality
+    setGenerationError(null);
+    setLastPrompt(prompt);
     setLastIsInitial(isInitial);
 
     try {
       let code;
       if (isInitial || !generatedCode) {
-        code = await CodeGenerator.generateVisualization(apiData, prompt);
+        code = await CodeGenerator.generateVisualization(apiData, prompt, apiKey);
       } else {
-        code = await CodeGenerator.iterateVisualization(generatedCode, prompt, apiData);
+        code = await CodeGenerator.iterateVisualization(generatedCode, prompt, apiData, apiKey);
       }
       setGeneratedCode(code);
     } catch (error) {
@@ -79,6 +86,7 @@ const Index = () => {
       handleVisualizationRequest(lastPrompt, lastIsInitial);
     }
   };
+
   return (
     <div className="h-screen bg-background flex flex-col">
       {/* Header */}
@@ -140,6 +148,8 @@ const Index = () => {
                   onVisualizationRequest={handleVisualizationRequest}
                   isGenerating={isGenerating}
                   generatedCode={generatedCode}
+                  apiKey={apiKey}
+                  onApiKeyChange={setApiKey}
                 />
               </ResizablePanel>
             </ResizablePanelGroup>
@@ -149,4 +159,5 @@ const Index = () => {
     </div>
   );
 };
+
 export default Index;

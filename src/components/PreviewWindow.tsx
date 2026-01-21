@@ -2,16 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button.tsx";
 import { Badge } from "@/components/ui/badge.tsx";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs.tsx";
-import { AlertCircle, Code, Copy, Download, ExternalLink, Eye, Play } from "lucide-react";
+import { AlertCircle, Code, Copy, Download, Eye, Play } from "lucide-react";
 import { useToast } from "@/hooks/use-toast.ts";
 
 interface GeneratedCode {
-  html: string;
-  css: string;
-  javascript: string;
-  fullCode: string;
+  html?: string;
+  css?: string;
+  javascript?: string;
+  fullCode?: string;
   sandboxId?: string;
-  sandboxUrl?: string;
   visualizationId?: string;
 }
 
@@ -97,8 +96,8 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
   };
 
   useEffect(() => {
-    if (generatedCode?.visualizationId && !generatedCode?.sandboxUrl) {
-      // Only monitor deployment status if we don't already have a sandbox URL
+    if (generatedCode?.visualizationId && !generatedCode?.html) {
+      // Only monitor deployment status if we don't already have HTML
       setDeploymentStatus(null);
       setDeploymentError(null);
       monitorDeployment(generatedCode.visualizationId);
@@ -106,7 +105,14 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
   }, [generatedCode?.visualizationId]);
 
   const downloadCode = () => {
-    if (!generatedCode) return;
+    if (!generatedCode || !generatedCode.fullCode) {
+      toast({
+        title: "Download Not Available",
+        description: "Code is not available for download (generated in sandbox)",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const blob = new Blob([generatedCode.fullCode], { type: "text/html" });
     const url = URL.createObjectURL(blob);
@@ -123,6 +129,9 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
       description: "Your visualization has been saved as an HTML file",
     });
   };
+
+  // Check if code details are available (sandbox generates code directly, so we may not have them)
+  const hasCodeDetails = !!(generatedCode?.html && generatedCode?.css && generatedCode?.javascript);
 
   const copyToClipboard = (code: string, type: string) => {
     navigator.clipboard.writeText(code);
@@ -202,29 +211,12 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                 Sandbox Deploy
               </Badge>
             </div>
-            {generatedCode.sandboxId && generatedCode.sandboxUrl && (
+            {generatedCode.sandboxId && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>Sandbox URL:</span>
+                <span>Sandbox ID:</span>
                 <code className="bg-muted px-2 py-1 rounded text-xs">
-                  {generatedCode.sandboxUrl}
+                  {generatedCode.sandboxId}
                 </code>
-                <Button
-                  onClick={() => {
-                    navigator.clipboard.writeText(generatedCode.sandboxUrl || "");
-                    const isProductionUrl = generatedCode.sandboxUrl?.startsWith("https://");
-                    toast({
-                      title: "URL Copied",
-                      description: isProductionUrl
-                        ? "Production sandbox URL copied to clipboard"
-                        : "Development sandbox URL copied to clipboard",
-                    });
-                  }}
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 px-2"
-                >
-                  <Copy className="w-3 h-3" />
-                </Button>
               </div>
             )}
           </div>
@@ -242,50 +234,53 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="grid grid-cols-5 mx-4 mt-4 max-w-full overflow-hidden text-xs">
+        <TabsList
+          className={`grid mx-4 mt-4 max-w-full overflow-hidden text-xs ${
+            hasCodeDetails ? "grid-cols-5" : "grid-cols-2"
+          }`}
+        >
           <TabsTrigger value="preview">
             <Eye className="w-3 h-3 mr-1" />
             Preview
           </TabsTrigger>
-          <TabsTrigger value="html">HTML</TabsTrigger>
-          <TabsTrigger value="css">CSS</TabsTrigger>
-          <TabsTrigger value="js">JavaScript</TabsTrigger>
+          {hasCodeDetails && (
+            <>
+              <TabsTrigger value="html">HTML</TabsTrigger>
+              <TabsTrigger value="css">CSS</TabsTrigger>
+              <TabsTrigger value="js">JavaScript</TabsTrigger>
+            </>
+          )}
           <TabsTrigger value="debug">Debug</TabsTrigger>
         </TabsList>
 
         <div className="flex-1 p-4">
-          {/* Preview content - load directly from sandbox deployment */}
+          {/* Preview content - display HTML via srcdoc */}
           <div
             className={`h-full rounded-lg overflow-hidden border border-border/50 ${
               activeTab === "preview" ? "block" : "hidden"
             }`}
           >
-            {generatedCode?.sandboxUrl
+            {generatedCode?.html
               ? (
                 <iframe
                   className="w-full h-full"
-                  src={generatedCode.sandboxUrl}
-                  sandbox="allow-scripts allow-same-origin"
-                  title="Sandbox Deployed Visualization"
+                  srcDoc={generatedCode.html}
+                  sandbox="allow-scripts"
+                  title="Generated Visualization"
                 />
               )
-              : deploymentError ||
-                  deploymentStatus?.status === "failed" ||
-                  (deploymentStatus?.status === "ready" && !deploymentStatus?.sandboxUrl)
+              : deploymentError || deploymentStatus?.status === "failed"
               ? (
                 <div className="w-full h-full flex items-center justify-center bg-background">
                   <div className="text-center space-y-4">
                     <AlertCircle className="w-8 h-8 mx-auto text-destructive" />
                     <div>
                       <p className="text-sm font-medium text-destructive">
-                        Sandbox Deployment Failed
+                        Visualization Generation Failed
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {deploymentError || deploymentStatus?.error ||
-                          "Code generated successfully but sandbox deployment failed"}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Check your DENO_DEPLOY_DEV_TOKEN in .env.local
+                          "Failed to generate visualization"}
                       </p>
                       {onRetry && (
                         <Button onClick={onRetry} variant="outline" size="sm" className="mt-4">
@@ -301,25 +296,15 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                 <div className="w-full h-full flex items-center justify-center bg-background">
                   <div className="text-center space-y-4">
                     <div className="w-8 h-8 mx-auto rounded-full bg-primary/20 flex items-center justify-center animate-pulse">
-                      <ExternalLink className="w-4 h-4 text-primary" />
+                      <Code className="w-4 h-4 text-primary" />
                     </div>
                     <div>
                       <p className="text-sm font-semibold">
-                        {!deploymentStatus
-                          ? "Starting deployment..."
-                          : deploymentStatus.status === "pending"
-                          ? "Generation complete, awaiting sandbox deployment"
-                          : deploymentStatus.status === "deploying"
-                          ? "Deploying to sandbox..."
-                          : deploymentStatus.status === "verifying"
-                          ? "Verifying deployment..."
-                          : "Finalizing deployment..."}
+                        Waiting for visualization...
                       </p>
-                      {deploymentStatus?.events && deploymentStatus.events.length > 0 && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {deploymentStatus.events[deploymentStatus.events.length - 1]?.message}
-                        </p>
-                      )}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Your visualization will appear here when ready
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -330,95 +315,117 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
             {/* This is just a placeholder to maintain tab structure */}
           </TabsContent>
 
-          <TabsContent value="html" className="h-full mt-0">
-            <div className="relative h-full">
-              <Button
-                onClick={() => copyToClipboard(generatedCode.html, "HTML")}
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 z-10"
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-              <pre className="code-panel h-full p-4 overflow-auto text-sm">
-                <code className="text-foreground">{generatedCode.html}</code>
-              </pre>
-            </div>
-          </TabsContent>
+          {hasCodeDetails && (
+            <>
+              <TabsContent value="html" className="h-full mt-0">
+                <div className="relative h-full">
+                  <Button
+                    onClick={() => copyToClipboard(generatedCode.html || "", "HTML")}
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 z-10"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <pre className="code-panel h-full p-4 overflow-auto text-sm">
+                    <code className="text-foreground">{generatedCode.html}</code>
+                  </pre>
+                </div>
+              </TabsContent>
 
-          <TabsContent value="css" className="h-full mt-0">
-            <div className="relative h-full">
-              <Button
-                onClick={() => copyToClipboard(generatedCode.css, "CSS")}
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 z-10"
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-              <pre className="code-panel h-full p-4 overflow-auto text-sm">
-                <code className="text-foreground">{generatedCode.css}</code>
-              </pre>
-            </div>
-          </TabsContent>
+              <TabsContent value="css" className="h-full mt-0">
+                <div className="relative h-full">
+                  <Button
+                    onClick={() => copyToClipboard(generatedCode.css || "", "CSS")}
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 z-10"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <pre className="code-panel h-full p-4 overflow-auto text-sm">
+                    <code className="text-foreground">{generatedCode.css}</code>
+                  </pre>
+                </div>
+              </TabsContent>
 
-          <TabsContent value="js" className="h-full mt-0">
-            <div className="relative h-full">
-              <Button
-                onClick={() => copyToClipboard(generatedCode.javascript, "JavaScript")}
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 z-10"
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
-              <pre className="code-panel h-full p-4 overflow-auto text-sm">
-                <code className="text-foreground">{generatedCode.javascript}</code>
-              </pre>
-            </div>
-          </TabsContent>
+              <TabsContent value="js" className="h-full mt-0">
+                <div className="relative h-full">
+                  <Button
+                    onClick={() => copyToClipboard(generatedCode.javascript || "", "JavaScript")}
+                    variant="ghost"
+                    size="sm"
+                    className="absolute top-2 right-2 z-10"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                  <pre className="code-panel h-full p-4 overflow-auto text-sm">
+                    <code className="text-foreground">{generatedCode.javascript}</code>
+                  </pre>
+                </div>
+              </TabsContent>
+            </>
+          )}
 
           <TabsContent value="debug" className="h-full mt-0">
             <div className="relative h-full">
-              <Button
-                onClick={() => copyToClipboard(generatedCode.fullCode, "Full HTML")}
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 z-10"
-              >
-                <Copy className="w-4 h-4" />
-              </Button>
+              {hasCodeDetails && generatedCode.fullCode && (
+                <Button
+                  onClick={() => copyToClipboard(generatedCode.fullCode || "", "Full HTML")}
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 z-10"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              )}
               <div className="h-full overflow-auto text-sm space-y-4 p-4">
-                <div>
-                  <h4 className="font-medium mb-2">📊 Full HTML Document</h4>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    This is exactly what gets loaded into the iframe
-                  </p>
-                  <pre className="bg-muted/30 p-3 rounded text-xs overflow-auto max-h-60">
-                    <code>{generatedCode.fullCode}</code>
-                  </pre>
-                </div>
+                {hasCodeDetails && generatedCode.fullCode && (
+                  <div>
+                    <h4 className="font-medium mb-2">📊 Full HTML Document</h4>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      This is exactly what gets loaded into the iframe
+                    </p>
+                    <pre className="bg-muted/30 p-3 rounded text-xs overflow-auto max-h-60">
+                      <code>{generatedCode.fullCode}</code>
+                    </pre>
+                  </div>
+                )}
 
                 <div>
                   <h4 className="font-medium mb-2">🔍 Debug Info</h4>
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-muted/30 p-2 rounded">
-                      <strong>HTML Length:</strong> {generatedCode.html.length} chars
-                    </div>
-                    <div className="bg-muted/30 p-2 rounded">
-                      <strong>CSS Length:</strong> {generatedCode.css.length} chars
-                    </div>
-                    <div className="bg-muted/30 p-2 rounded">
-                      <strong>JS Length:</strong> {generatedCode.javascript.length} chars
-                    </div>
-                    <div className="bg-muted/30 p-2 rounded">
-                      <strong>Total Length:</strong> {generatedCode.fullCode.length} chars
-                    </div>
+                    {hasCodeDetails
+                      ? (
+                        <>
+                          <div className="bg-muted/30 p-2 rounded">
+                            <strong>HTML Length:</strong> {generatedCode.html?.length || 0} chars
+                          </div>
+                          <div className="bg-muted/30 p-2 rounded">
+                            <strong>CSS Length:</strong> {generatedCode.css?.length || 0} chars
+                          </div>
+                          <div className="bg-muted/30 p-2 rounded">
+                            <strong>JS Length:</strong> {generatedCode.javascript?.length || 0}{" "}
+                            chars
+                          </div>
+                          <div className="bg-muted/30 p-2 rounded">
+                            <strong>Total Length:</strong> {generatedCode.fullCode?.length || 0}
+                            {" "}
+                            chars
+                          </div>
+                        </>
+                      )
+                      : (
+                        <div className="bg-blue-100 dark:bg-blue-950/40 p-2 rounded col-span-2">
+                          <strong>Code Generation:</strong>{" "}
+                          Code is generated directly in the sandbox using your API key
+                        </div>
+                      )}
                     <div className="bg-muted/30 p-2 rounded">
                       <strong>Sandbox ID:</strong> {generatedCode.sandboxId || "N/A"}
                     </div>
                     <div className="bg-muted/30 p-2 rounded">
-                      <strong>Sandbox URL:</strong> {generatedCode.sandboxUrl || "N/A"}
+                      <strong>HTML Length:</strong> {generatedCode.html?.length || 0} chars
                     </div>
                   </div>
                 </div>
@@ -456,12 +463,12 @@ export const PreviewWindow = ({ generatedCode, isLoading, error, onRetry }: Prev
                       </span>
                     </div>
                     <div className="bg-amber-100 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 p-2 rounded">
-                      <strong className="text-amber-900 dark:text-amber-100">Sandbox URL:</strong>
-                      <br />
-                      <code className="text-xs break-all bg-amber-200 dark:bg-amber-900/30 px-1 py-0.5 rounded text-amber-900 dark:text-amber-100">
-                        {deploymentStatus?.sandboxUrl || generatedCode.sandboxUrl ||
-                          "Not available"}
-                      </code>
+                      <strong className="text-amber-900 dark:text-amber-100">
+                        Rendering Mode:
+                      </strong>{" "}
+                      <span className="text-amber-800 dark:text-amber-200">
+                        srcdoc (HTML embedded directly)
+                      </span>
                     </div>
                     <div className="bg-green-100 dark:bg-green-950/40 border border-green-200 dark:border-green-800 p-2 rounded">
                       <strong className="text-green-900 dark:text-green-100">Deployment:</strong>

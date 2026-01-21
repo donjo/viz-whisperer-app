@@ -12,6 +12,9 @@ const CONFIG = {
   CLEANUP: {
     OLD_SANDBOX_THRESHOLD_MS: 60 * 60 * 1000, // 1 hour
   },
+  SANDBOX: {
+    CREATION_TIMEOUT_MS: 30000, // 30 seconds for sandbox creation
+  },
 } as const;
 
 interface SandboxVisualization {
@@ -22,11 +25,394 @@ interface SandboxVisualization {
   createdAt: Date;
 }
 
+interface VisualizationRequest {
+  apiData: {
+    url: string;
+    data: any[];
+    structure: {
+      fields: Array<{
+        name: string;
+        type: string;
+        sample: any;
+      }>;
+      totalRecords: number;
+    };
+  };
+  prompt: string;
+  currentCode?: {
+    html: string;
+    css: string;
+    javascript: string;
+  };
+}
+
+// The visualization generator code that runs inside the sandbox
+// This is embedded as a string so we can write it to the sandbox filesystem
+const VISUALIZATION_GENERATOR_CODE = `
+/**
+ * Visualization Generator - Runs INSIDE the sandbox
+ * API key is securely injected via secrets feature
+ */
+import Anthropic from "npm:@anthropic-ai/sdk@^0.71.0";
+
+interface VisualizationRequest {
+  apiData: {
+    url: string;
+    data: any[];
+    structure: {
+      fields: Array<{ name: string; type: string; sample: any }>;
+      totalRecords: number;
+    };
+  };
+  prompt: string;
+  currentCode?: { html: string; css: string; javascript: string };
+  model?: string;
+}
+
 interface GeneratedCode {
   html: string;
   css: string;
   javascript: string;
 }
+
+// Phase tracking for status endpoint
+let generationPhase = "initializing";
+let generationStartTime = Date.now();
+
+const requestJson = Deno.args[0];
+console.log("Starting visualization generator...");
+console.log("ANTHROPIC_API_KEY set:", !!Deno.env.get("ANTHROPIC_API_KEY"));
+
+if (!requestJson) {
+  console.error("No request data provided");
+  Deno.exit(1);
+}
+
+let request: VisualizationRequest;
+try {
+  generationPhase = "parsing_request";
+  request = JSON.parse(requestJson);
+  console.log("Request parsed successfully, prompt:", request.prompt?.substring(0, 50));
+} catch (error) {
+  console.error("Failed to parse request JSON:", error);
+  Deno.exit(1);
+}
+
+let anthropic: Anthropic;
+try {
+  generationPhase = "creating_client";
+  anthropic = new Anthropic();
+  console.log("Anthropic client created successfully");
+} catch (error) {
+  console.error("Failed to create Anthropic client:", error);
+  throw error;
+}
+
+const systemPrompt = \`You are a data visualization expert. Generate HTML/CSS/JavaScript chart code.
+
+CRITICAL: Your response must be ONLY a valid JSON object. No explanation, no markdown, no text before or after.
+
+Response format (exactly this structure):
+{
+  "html": "<div id='chart'></div>",
+  "css": "body { ... }",
+  "javascript": "// chart code"
+}
+
+Requirements:
+1. Use vanilla JavaScript with HTML5 Canvas or SVG (no external libraries)
+2. Dark theme: background #0f0f23, text #e2e8f0, accent #60a5fa
+3. Make it responsive with hover effects and labels
+4. Filter data based on user's time period or limit requests
+5. Include a chart title showing what data subset is displayed
+
+RESPOND WITH JSON ONLY. NO OTHER TEXT.\`;
+
+function buildUserPrompt(req: VisualizationRequest): string {
+  const { apiData, prompt, currentCode } = req;
+  const dateFields = apiData.structure.fields.filter((field) => {
+    const fieldName = field.name.toLowerCase();
+    const sampleValue = String(field.sample);
+    const dateNamePatterns = ["date", "time", "created", "updated", "modified", "timestamp"];
+    const hasDateName = dateNamePatterns.some((p) => fieldName.includes(p));
+    const datePatterns = [/^\\d{4}-\\d{2}-\\d{2}/, /^\\d{2}\\/\\d{2}\\/\\d{4}/, /^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}/];
+    const hasDateFormat = datePatterns.some((p) => p.test(sampleValue));
+    return hasDateName || hasDateFormat;
+  });
+
+  let userPrompt = \`Create a data visualization with the following specifications:
+  Data Source: \${apiData.url}
+  Total Records: \${apiData.structure.totalRecords}
+  Data Structure:
+  \${apiData.structure.fields.map((f) => \`- \${f.name} (\${f.type}): \${JSON.stringify(f.sample)}\`).join("\\n")}\`;
+
+  if (dateFields.length > 0) {
+    userPrompt += \`\\n\\n  Detected Date/Time Fields:\\n  \${dateFields.map((f) => \`- \${f.name} (\${f.type}): \${JSON.stringify(f.sample)}\`).join("\\n")}\`;
+  }
+
+  userPrompt += \`\\n\\n  Sample Data (first 10 records):\\n  \${JSON.stringify(apiData.data.slice(0, 10), null, 2)}\\n\\n  User Request: \${prompt}
+
+IMPORTANT DATA HANDLING INSTRUCTIONS:
+1. If the user specifies a time period, date range, or record limit, you MUST implement filtering
+2. Use JavaScript's filter(), slice(), or other array methods to limit data before visualization
+3. Do NOT display all \${apiData.structure.totalRecords} records unless specifically requested\`;
+
+  if (currentCode) {
+    userPrompt += \`\\n\\n    Current Visualization Code to Modify:\\n    HTML: \${currentCode.html}\\n    CSS: \${currentCode.css}\\n    JavaScript: \${currentCode.javascript}\\n\\n    Please modify the existing code based on the user's request.\`;
+  }
+
+  return userPrompt;
+}
+
+function parseResponse(text: string): GeneratedCode {
+  // Try direct parse first (most common case with prefill)
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed.html && parsed.css && parsed.javascript) {
+      return { html: parsed.html, css: parsed.css, javascript: parsed.javascript };
+    }
+  } catch { /* fall through to regex extraction */ }
+
+  // Fallback: extract JSON from text if direct parse fails
+  const jsonPatterns = [/\\{[\\s\\S]*"javascript"[\\s\\S]*\\}/, /\\{[\\s\\S]*\\}/];
+  for (const pattern of jsonPatterns) {
+    const jsonMatch = text.match(pattern);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (parsed.html && parsed.css && parsed.javascript) {
+          return { html: parsed.html, css: parsed.css, javascript: parsed.javascript };
+        }
+      } catch { continue; }
+    }
+  }
+
+  console.error("Failed to parse response:", text.substring(0, 200));
+  return generateFallbackChart();
+}
+
+function generateFallbackChart(): GeneratedCode {
+  return {
+    html: '<div id="chart"><canvas id="chartCanvas"></canvas></div>',
+    css: \`body{background:#0f0f23;color:#e2e8f0;margin:0;font-family:Arial}
+#chart{width:100%;height:100vh;padding:20px;display:flex;justify-content:center;align-items:center}
+canvas{max-width:100%;max-height:100%;background:rgba(30,30,60,0.3);border-radius:8px}\`,
+    javascript: \`
+const canvas = document.getElementById('chartCanvas');
+const ctx = canvas.getContext('2d');
+const resizeCanvas = () => {
+  const container = canvas.parentElement;
+  canvas.width = Math.min(container.clientWidth - 40, 800);
+  canvas.height = Math.min(container.clientHeight - 40, 500);
+  drawChart();
+};
+const data = [{ name: 'A', value: 400 }, { name: 'B', value: 300 }, { name: 'C', value: 300 }, { name: 'D', value: 200 }];
+const drawChart = () => {
+  const width = canvas.width, height = canvas.height;
+  const margin = { top: 40, right: 30, bottom: 60, left: 60 };
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+  ctx.clearRect(0, 0, width, height);
+  const maxValue = Math.max(...data.map(d => d.value));
+  const barWidth = chartWidth / data.length * 0.8;
+  const barSpacing = chartWidth / data.length * 0.2;
+  data.forEach((item, index) => {
+    const barHeight = (item.value / maxValue) * chartHeight;
+    const x = margin.left + index * (barWidth + barSpacing) + barSpacing / 2;
+    const y = margin.top + chartHeight - barHeight;
+    ctx.fillStyle = '#60a5fa';
+    ctx.fillRect(x, y, barWidth, barHeight);
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '14px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(item.name, x + barWidth / 2, height - margin.bottom + 20);
+    ctx.fillText(item.value, x + barWidth / 2, y - 10);
+  });
+  ctx.strokeStyle = '#374151';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, margin.top);
+  ctx.lineTo(margin.left, margin.top + chartHeight);
+  ctx.moveTo(margin.left, margin.top + chartHeight);
+  ctx.lineTo(margin.left + chartWidth, margin.top + chartHeight);
+  ctx.stroke();
+  ctx.fillStyle = '#e2e8f0';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Sample Data Visualization', width / 2, 25);
+};
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+\`
+  };
+}
+
+function buildHtml(code: GeneratedCode): string {
+  return \`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Visualization</title>
+    <style>\${code.css}</style>
+</head>
+<body>
+    \${code.html}
+    <script>\${code.javascript}</script>
+</body>
+</html>\`;
+}
+
+let generatedHtml: string = "";  // Initialize empty
+let generationError: string | null = null;
+
+// Loading page shown while AI is generating the visualization
+function buildLoadingHtml(): string {
+  return \`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generating Visualization...</title>
+    <style>
+      body {
+        background: #0f0f23;
+        color: #e2e8f0;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      .loader {
+        text-align: center;
+      }
+      .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(96, 165, 250, 0.3);
+        border-top-color: #60a5fa;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 20px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .phase {
+        color: #60a5fa;
+        font-size: 14px;
+        margin-top: 10px;
+      }
+    </style>
+</head>
+<body>
+    <div class="loader">
+      <div class="spinner"></div>
+      <h2>Generating Visualization</h2>
+      <p class="phase">Phase: \${generationPhase}</p>
+      <p>Please wait while the AI creates your chart...</p>
+    </div>
+</body>
+</html>\`;
+}
+
+// Async function to generate visualization (runs in background after server starts)
+async function generateVisualization() {
+  try {
+    generationPhase = "calling_api";
+    console.log("Calling Anthropic API to generate visualization...");
+    const userPrompt = buildUserPrompt(request);
+    const model = request.model || Deno.env.get("MODEL") || "claude-sonnet-4-5-20250929";
+    const response = await anthropic.messages.create({
+      model: model,
+      max_tokens: 16000,
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: userPrompt },
+        { role: "assistant", content: "{" }  // Prefill forces JSON start
+      ],
+    });
+    generationPhase = "parsing_response";
+    const content = response.content[0];
+    if (content.type === "text") {
+      // Prepend the prefill "{" to the response since we used prefill technique
+      const responseText = "{" + content.text;
+      const code = parseResponse(responseText);
+      generatedHtml = buildHtml(code);
+      console.log("Visualization generated successfully");
+    } else {
+      throw new Error("Unexpected response format from AI");
+    }
+    generationPhase = "ready";
+  } catch (error) {
+    console.error("Failed to generate visualization:", error);
+    generationError = error instanceof Error ? error.message : "Unknown error";
+    generationPhase = "error";
+    const fallback = generateFallbackChart();
+    generatedHtml = buildHtml(fallback);
+  }
+}
+
+// Start HTTP server FIRST (so /status endpoint is available immediately)
+console.log("Starting HTTP server...");
+Deno.serve((req: Request) => {
+  const url = new URL(req.url);
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }
+  if (url.pathname === "/status") {
+    return Response.json({
+      phase: generationPhase,
+      elapsed: Date.now() - generationStartTime,
+      ready: generationPhase === "ready",
+      error: generationError
+    }, {
+      headers: { "Access-Control-Allow-Origin": "*" }
+    });
+  }
+  if (url.pathname === "/health") {
+    return Response.json({ status: generationError ? "error" : "ok", error: generationError }, {
+      headers: { "Access-Control-Allow-Origin": "*" }
+    });
+  }
+  if (url.pathname === "/" || url.pathname === "/index.html") {
+    // Return loading page while still generating
+    if (generationPhase !== "ready" && generationPhase !== "error") {
+      return new Response(buildLoadingHtml(), {
+        headers: {
+          "Content-Type": "text/html; charset=utf-8",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+    return new Response(generatedHtml, {
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+      },
+    });
+  }
+  return new Response("Not Found", {
+    status: 404,
+    headers: { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" },
+  });
+});
+
+// THEN start generation (non-blocking, runs in background)
+generateVisualization();
+`;
 
 class SandboxService {
   private activeSandboxes = new Map<string, SandboxVisualization>();
@@ -49,19 +435,26 @@ class SandboxService {
   }
 
   /**
-   * Creates a new sandbox and deploys the visualization code as an HTTP server
+   * Creates a new sandbox that generates and serves a visualization
+   * The sandbox makes Anthropic API calls directly using the user's API key
+   *
+   * @param request - The visualization request with data and prompt
+   * @param userApiKey - User's Anthropic API key (injected securely via secrets)
+   * @param visualizationId - Optional ID for tracking deployment progress
    */
   async createVisualization(
-    generatedCode: GeneratedCode,
+    request: VisualizationRequest,
+    userApiKey: string,
     visualizationId?: string,
   ): Promise<{ id: string; url: string }> {
     const id = crypto.randomUUID();
 
     try {
       this.validateDeployToken(visualizationId);
+      this.validateApiKey(userApiKey, visualizationId);
 
-      const sandbox = await this.initializeSandbox(visualizationId);
-      const runtime = await this.deployToSandbox(sandbox, generatedCode, id, visualizationId);
+      const sandbox = await this.initializeSandboxWithSecrets(userApiKey, visualizationId);
+      const runtime = await this.deployGeneratorToSandbox(sandbox, request, id, visualizationId);
       const url = await this.exposeAndRegisterSandbox(sandbox, runtime, id, visualizationId);
 
       await this.performPostDeploymentVerification(url, visualizationId);
@@ -72,6 +465,89 @@ class SandboxService {
       this.handleCreationError(error, id, visualizationId);
       throw error;
     }
+  }
+
+  /**
+   * Creates a sandbox, waits for generation to complete, and fetches the HTML
+   * This method handles the full flow: create sandbox -> wait for ready -> fetch HTML
+   *
+   * @param request - The visualization request with data and prompt
+   * @param userApiKey - User's Anthropic API key
+   * @param visualizationId - Optional ID for tracking deployment progress
+   * @returns The sandbox ID and generated HTML
+   */
+  async createAndFetchVisualization(
+    request: VisualizationRequest,
+    userApiKey: string,
+    visualizationId?: string,
+  ): Promise<{ id: string; html: string }> {
+    // Create sandbox as before
+    const { id, url } = await this.createVisualization(request, userApiKey, visualizationId);
+
+    // Poll /status until ready (with timeout)
+    const maxWaitMs = 90000; // 90 seconds (Anthropic API can take 30+ seconds)
+    const pollIntervalMs = 2000; // Poll every 2 seconds
+    const startTime = Date.now();
+
+    if (visualizationId) {
+      deploymentLogger.logEvent(
+        visualizationId,
+        "verification",
+        "Waiting for visualization generation to complete",
+      );
+    }
+
+    while (Date.now() - startTime < maxWaitMs) {
+      try {
+        const statusResponse = await this.fetchFromSandbox(id, "/status");
+        const status = await statusResponse.json();
+
+        if (visualizationId) {
+          deploymentLogger.logEvent(
+            visualizationId,
+            "verification",
+            `Generation phase: ${status.phase}`,
+            { elapsed: status.elapsed },
+          );
+        }
+
+        if (status.ready) {
+          // Fetch the HTML
+          const htmlResponse = await this.fetchFromSandbox(id, "/");
+          const html = await htmlResponse.text();
+
+          if (visualizationId) {
+            deploymentLogger.logEvent(
+              visualizationId,
+              "ready",
+              "HTML fetched successfully",
+              { htmlLength: html.length },
+            );
+          }
+
+          // Destroy sandbox after fetching HTML (it's no longer needed)
+          await this.destroySandbox(id);
+
+          return { id, html };
+        }
+
+        if (status.phase === "error") {
+          throw new Error(status.error || "Visualization generation failed");
+        }
+      } catch (error) {
+        // If it's not a fetch error (sandbox not ready yet), rethrow
+        if (error instanceof Error && !error.message.includes("Sandbox request failed")) {
+          throw error;
+        }
+        // Sandbox not ready yet, continue polling
+      }
+
+      await new Promise((r) => setTimeout(r, pollIntervalMs));
+    }
+
+    // Clean up on timeout
+    await this.destroySandbox(id);
+    throw new Error("Visualization generation timed out after 90 seconds");
   }
 
   private validateDeployToken(visualizationId?: string): void {
@@ -88,32 +564,70 @@ class SandboxService {
     }
   }
 
-  private async initializeSandbox(visualizationId?: string): Promise<Sandbox> {
+  private validateApiKey(userApiKey: string, visualizationId?: string): void {
+    if (!userApiKey || typeof userApiKey !== "string" || userApiKey.trim() === "") {
+      const error = "Anthropic API key is required";
+      if (visualizationId) {
+        deploymentLogger.markFailed(visualizationId, error);
+      }
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * Initialize sandbox with the user's API key
+   * - API key is passed via environment variables
+   * - Sandbox runs isolated code with its own process space
+   */
+  private async initializeSandboxWithSecrets(
+    userApiKey: string,
+    visualizationId?: string,
+  ): Promise<Sandbox> {
     if (visualizationId) {
-      deploymentLogger.logEvent(visualizationId, "sandbox_creation", "Starting sandbox creation");
       deploymentLogger.logEvent(
         visualizationId,
         "sandbox_creation",
-        "Creating Deno Deploy sandbox instance",
+        "Starting secure sandbox creation with secrets injection",
       );
     }
 
-    // In development, use localhost:8000 for the Deno Deploy service
     const isDevelopment = Deno.env.get("DENO_ENV") === "development" ||
       !Deno.env.get("DENO_DEPLOYMENT_ID");
-    const options: any = { token: this.deployToken };
+
+    // Build sandbox options with security features
+    const options: Record<string, unknown> = {
+      token: this.deployToken,
+      // Environment variables - API key is passed via env
+      env: {
+        ANTHROPIC_API_KEY: userApiKey,
+        MODEL: "claude-sonnet-4-5-20250929",
+      },
+      // TODO: Add network restrictions once basic functionality works
+      // allowNet: ["api.anthropic.com"],
+    };
 
     if (isDevelopment) {
-      // Use local Deno Deploy service
       options.baseUrl = "http://localhost:8000";
+    }
+
+    if (visualizationId) {
+      deploymentLogger.logEvent(
+        visualizationId,
+        "sandbox_creation",
+        "Creating sandbox with network restriction to api.anthropic.com",
+      );
     }
 
     return await Sandbox.create(options);
   }
 
-  private async deployToSandbox(
+  /**
+   * Deploy the visualization generator code to the sandbox and run it
+   * The generator will call Anthropic API and serve the result
+   */
+  private async deployGeneratorToSandbox(
     sandbox: Sandbox,
-    generatedCode: GeneratedCode,
+    request: VisualizationRequest,
     sandboxId: string,
     visualizationId?: string,
   ): Promise<DenoProcess> {
@@ -121,37 +635,42 @@ class SandboxService {
       deploymentLogger.logEvent(
         visualizationId,
         "deployment",
-        "Generating server code and deploying",
+        "Writing generator code to sandbox filesystem",
       );
     }
 
-    const serverCode = this.generateServerCode(generatedCode);
+    // Write the generator code to the sandbox filesystem
+    // Inject the request data directly into the code since args may not be supported
+    const requestData = JSON.stringify(request);
+    const codeWithRequest = VISUALIZATION_GENERATOR_CODE.replace(
+      "const requestJson = Deno.args[0];",
+      `const requestJson = ${JSON.stringify(requestData)};`,
+    );
 
-    // Create a JavaScript runtime with the server code using the new API
+    // Encode string to Uint8Array for writeFile
+    const encoder = new TextEncoder();
+    await sandbox.fs.writeFile("/app/generator.ts", encoder.encode(codeWithRequest));
+
+    if (visualizationId) {
+      deploymentLogger.logEvent(
+        visualizationId,
+        "deployment",
+        "Starting visualization generator in sandbox",
+      );
+    }
+
+    // Run the generator - request data is embedded in the code
     const runtime = await sandbox.deno.run({
-      code: serverCode,
+      entrypoint: "/app/generator.ts",
     });
 
     if (visualizationId) {
       deploymentLogger.logEvent(
         visualizationId,
         "deployment",
-        "HTTP server starting (skipping httpReady check)",
+        "Visualization generator started, generating visualization via Anthropic API",
       );
     }
-
-    // Skip waiting for httpReady since it seems to hang but sandboxes work anyway
-    // The sandboxes are actually starting on Deno Deploy according to the dashboard
-    // const isReady = await runtime.httpReady;
-
-    // if (!isReady) {
-    //   const error = "Sandbox runtime failed to start HTTP server";
-    //   console.error("❌", error);
-    //   if (visualizationId) {
-    //     deploymentLogger.markFailed(visualizationId, error, { sandboxId });
-    //   }
-    //   throw new Error(error);
-    // }
 
     return runtime;
   }
@@ -277,7 +796,6 @@ class SandboxService {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
 
         if (attempt === maxRetries) {
-          // Final attempt failed
           console.error("Sandbox verification failed after all attempts:", errorMessage, {
             url,
             maxRetries,
@@ -286,7 +804,6 @@ class SandboxService {
           });
           throw new Error(`Verification failed after ${maxRetries} attempts: ${errorMessage}`);
         } else {
-          // Retry after delay
           if (visualizationId) {
             deploymentLogger.logEvent(
               visualizationId,
@@ -302,7 +819,7 @@ class SandboxService {
   }
 
   /**
-   * Makes an HTTP request to a sandbox visualization
+   * Makes an HTTP request to a sandbox visualization using its public URL
    */
   async fetchFromSandbox(id: string, path = "/"): Promise<Response> {
     const visualization = this.activeSandboxes.get(id);
@@ -311,8 +828,11 @@ class SandboxService {
     }
 
     try {
-      // Use the runtime's fetch method to make requests to the HTTP server
-      const response = await visualization.runtime.fetch(`https://localhost${path}`);
+      // Use the public URL instead of runtime.fetch with localhost
+      const url = new URL(path, visualization.url);
+      const response = await fetch(url.toString(), {
+        signal: AbortSignal.timeout(CONFIG.RETRY.TIMEOUT_MS),
+      });
       return response;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -406,76 +926,6 @@ class SandboxService {
   }
 
   /**
-   * Generates Deno server code that serves the visualization
-   */
-  private generateServerCode(generatedCode: GeneratedCode): string {
-    const { html, css, javascript } = generatedCode;
-
-    // Create a complete HTML document
-    const fullHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Visualization</title>
-    <style>
-${css}
-    </style>
-</head>
-<body>
-    ${html}
-    <script>
-${javascript}
-    </script>
-</body>
-</html>`;
-
-    // Generate the Deno server code with modern syntax
-    return `
-// Deno server code for data visualization
-const html = ${JSON.stringify(fullHtml)};
-
-// Create the HTTP server using modern Deno.serve syntax
-Deno.serve((request) => {
-  const url = new URL(request.url);
-  
-  // Handle different routes
-  if (url.pathname === "/" || url.pathname === "/index.html") {
-    return new Response(html, {
-      headers: {
-        "Content-Type": "text/html; charset=utf-8",
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
-    });
-  }
-  
-  // Handle CORS preflight requests
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
-    });
-  }
-  
-  // Return 404 for any other unhandled paths
-  return new Response("Not Found", { 
-    status: 404,
-    headers: {
-      "Content-Type": "text/plain",
-      "Access-Control-Allow-Origin": "*"
-    }
-  });
-});
-`;
-  }
-
-  /**
    * Check if the sandbox service is properly configured
    */
   isConfigured(): boolean {
@@ -487,4 +937,4 @@ Deno.serve((request) => {
 export const sandboxService = new SandboxService();
 
 // Export types for use in other files
-export type { GeneratedCode, SandboxVisualization };
+export type { SandboxVisualization, VisualizationRequest };
