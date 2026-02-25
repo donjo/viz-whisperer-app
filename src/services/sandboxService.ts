@@ -359,7 +359,7 @@ async function generateVisualization() {
     generationPhase = "calling_api";
     console.log("Calling Anthropic API to generate visualization...");
     const userPrompt = buildUserPrompt(request);
-    const model = request.model || Deno.env.get("MODEL") || "claude-sonnet-4-5-20250929";
+    const model = request.model || Deno.env.get("MODEL") || "claude-sonnet-4-6";
     const response = await anthropic.messages.create({
       model: model,
       max_tokens: 16000,
@@ -626,25 +626,6 @@ class SandboxService {
       );
     }
 
-    const isDevelopment = Deno.env.get("DENO_ENV") === "development" ||
-      !Deno.env.get("DENO_DEPLOYMENT_ID");
-
-    // Build sandbox options with security features
-    const options: Record<string, unknown> = {
-      token: this.deployToken,
-      // Environment variables - API key is passed via env
-      env: {
-        ANTHROPIC_API_KEY: userApiKey,
-        MODEL: "claude-sonnet-4-5-20250929",
-      },
-      // TODO: Add network restrictions once basic functionality works
-      // allowNet: ["api.anthropic.com"],
-    };
-
-    if (isDevelopment) {
-      options.baseUrl = "http://localhost:8000";
-    }
-
     if (visualizationId) {
       deploymentLogger.logEvent(
         visualizationId,
@@ -653,7 +634,13 @@ class SandboxService {
       );
     }
 
-    return await Sandbox.create(options);
+    const sandbox = await Sandbox.create({ token: this.deployToken });
+
+    // Set environment variables via sandbox.env (new API in 0.12.0)
+    await sandbox.env.set("ANTHROPIC_API_KEY", userApiKey);
+    await sandbox.env.set("MODEL", "claude-sonnet-4-6");
+
+    return sandbox;
   }
 
   /**
@@ -681,6 +668,9 @@ class SandboxService {
       "const requestJson = Deno.args[0];",
       `const requestJson = ${JSON.stringify(requestData)};`,
     );
+
+    // Ensure /app directory exists before writing
+    await sandbox.fs.mkdir("/app", { recursive: true });
 
     // Encode string to Uint8Array for writeFile
     const encoder = new TextEncoder();

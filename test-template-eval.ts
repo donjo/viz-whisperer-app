@@ -173,7 +173,7 @@ async function main() {
     baseUrl: "http://localhost:8000",
     env: {
       ANTHROPIC_API_KEY: apiKey || "test-key",
-      MODEL: "claude-sonnet-4-5-20250929",
+      MODEL: "claude-sonnet-4-6",
     },
   });
 

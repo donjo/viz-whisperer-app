@@ -294,7 +294,7 @@ try {
   console.log("Calling Anthropic API to generate visualization...");
 
   const userPrompt = buildUserPrompt(request);
-  const model = request.model || Deno.env.get("MODEL") || "claude-sonnet-4-5-20250929";
+  const model = request.model || Deno.env.get("MODEL") || "claude-sonnet-4-6";
 
   const response = await anthropic.messages.create({
     model: model,

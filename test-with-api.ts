@@ -54,7 +54,7 @@ try {
   console.log("Client created, calling API...");
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 4000,
     messages: [{ role: "user", content: "Return this JSON exactly: {\\\"html\\\":\\\"<h1>Test</h1>\\\",\\\"css\\\":\\\"body{background:#0f0f23;color:white}\\\",\\\"javascript\\\":\\\"console.log('test')\\\"}" }]
   });
