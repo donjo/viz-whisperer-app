@@ -367,14 +367,12 @@ async function generateVisualization() {
       system: systemPrompt,
       messages: [
         { role: "user", content: userPrompt },
-        { role: "assistant", content: "{" }  // Prefill forces JSON start
       ],
     });
     generationPhase = "parsing_response";
     const content = response.content[0];
     if (content.type === "text") {
-      // Prepend the prefill "{" to the response since we used prefill technique
-      const responseText = "{" + content.text;
+      const responseText = content.text;
       const code = parseResponse(responseText);
       generatedHtml = buildHtml(code);
       console.log("Visualization generated successfully");
@@ -669,12 +667,9 @@ class SandboxService {
       `const requestJson = ${JSON.stringify(requestData)};`,
     );
 
-    // Ensure /app directory exists before writing
-    await sandbox.fs.mkdir("/app", { recursive: true });
-
     // Encode string to Uint8Array for writeFile
     const encoder = new TextEncoder();
-    await sandbox.fs.writeFile("/app/generator.ts", encoder.encode(codeWithRequest));
+    await sandbox.fs.writeFile("/tmp/generator.ts", encoder.encode(codeWithRequest));
 
     if (visualizationId) {
       deploymentLogger.logEvent(
@@ -686,7 +681,7 @@ class SandboxService {
 
     // Run the generator - request data is embedded in the code
     const runtime = await sandbox.deno.run({
-      entrypoint: "/app/generator.ts",
+      entrypoint: "/tmp/generator.ts",
     });
 
     if (visualizationId) {
