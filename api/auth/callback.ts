@@ -32,7 +32,7 @@ export default async function handler(req: Request): Promise<Response> {
     Deno.env.get("DENO_ENV") === "development" ||
     !Deno.env.get("DENO_DEPLOYMENT_ID") // Not on Deno Deploy = local dev
   ) {
-    origin = "http://localhost:5173";
+    origin = "http://localhost:5800";
   } else {
     origin = url.origin;
   }

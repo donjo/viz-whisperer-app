@@ -103,10 +103,38 @@ async function handler(req: Request): Promise<Response> {
 }
 
 // Development server entry point
-const port = parseInt(
+const PORT_FILE = ".dev-port";
+
+async function findFreePort(startPort: number): Promise<number> {
+  for (let port = startPort; port < startPort + 20; port++) {
+    try {
+      const listener = Deno.listen({ port, hostname: "127.0.0.1" });
+      listener.close();
+      return port;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error(`No free port found in range ${startPort}–${startPort + 19}`);
+}
+
+const requestedPort = parseInt(
   Deno.args.find((arg) => arg.startsWith("--port="))?.split("=")[1] || "3000",
 );
+const port = await findFreePort(requestedPort);
+
+await Deno.writeTextFile(PORT_FILE, String(port));
+
+const cleanup = () => {
+  try { Deno.removeSync(PORT_FILE); } catch { /* ignore */ }
+};
+Deno.addSignalListener("SIGINT", cleanup);
+Deno.addSignalListener("SIGTERM", cleanup);
+
 console.log(`🚀 API Server starting on http://localhost:${port}`);
+if (port !== requestedPort) {
+  console.log(`⚠️  Port ${requestedPort} was in use — using ${port} instead`);
+}
 console.log(`📦 DEPLOY_TOKEN configured: ${!!Deno.env.get("DEPLOY_TOKEN")}`);
 
 Deno.serve({ port, hostname: "0.0.0.0" }, handler);

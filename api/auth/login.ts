@@ -42,7 +42,7 @@ export default function handler(req: Request): Response {
       !Deno.env.get("DENO_DEPLOYMENT_ID") // Not on Deno Deploy = local dev
     ) {
       // In dev mode, use Vite's default port
-      origin = "http://localhost:5173";
+      origin = "http://localhost:5800";
     } else {
       // In production (Deno Deploy), use the request origin
       origin = url.origin;
